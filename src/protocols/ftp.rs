@@ -4,9 +4,8 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use async_trait::async_trait;
-use futures::io::AsyncReadExt as FuturesReadExt;
-use suppaftp::AsyncFtpStream;
-use tokio::io::AsyncWriteExt;
+use suppaftp::tokio::AsyncFtpStream;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
 use crate::error::{IftError, IftResult};
@@ -139,11 +138,12 @@ impl ProtocolHandler for FtpHandler {
             .map_err(|e| IftError::TransferFailed(format!("FTP RETR: {}", e)))?;
 
         let mut data = Vec::new();
-        FuturesReadExt::read_to_end(&mut stream, &mut data)
+        AsyncReadExt::read_to_end(&mut stream, &mut data)
             .await
             .map_err(|e| IftError::TransferFailed(format!("FTP read: {}", e)))?;
 
-        ftp.finalize_retr_stream(stream)
+        stream
+            .finish()
             .await
             .map_err(|e| IftError::Other(format!("FTP finalize: {}", e)))?;
 
@@ -189,11 +189,12 @@ impl ProtocolHandler for FtpHandler {
             .map_err(|e| IftError::TransferFailed(format!("FTP RETR range: {}", e)))?;
 
         let mut data = Vec::new();
-        FuturesReadExt::read_to_end(&mut stream, &mut data)
+        AsyncReadExt::read_to_end(&mut stream, &mut data)
             .await
             .map_err(|e| IftError::TransferFailed(format!("FTP read: {}", e)))?;
 
-        ftp.finalize_retr_stream(stream)
+        stream
+            .finish()
             .await
             .map_err(|e| IftError::Other(format!("FTP finalize: {}", e)))?;
 
@@ -218,7 +219,7 @@ impl ProtocolHandler for FtpHandler {
 
         let data = tokio::fs::read(source).await?;
         let file_size = data.len() as u64;
-        let mut cursor = futures::io::Cursor::new(data);
+        let mut cursor = std::io::Cursor::new(data);
 
         ftp.put_file(&path, &mut cursor)
             .await

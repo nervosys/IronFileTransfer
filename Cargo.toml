@@ -46,19 +46,19 @@ md5 = { package = "md-5", version = "0.10" }
 hex = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
-zstd = "0.13"
+zstd = "0.14"
 
 # FTP/FTPS support
-suppaftp = { version = "6", features = ["async-rustls"] }
+suppaftp = { version = "12", features = ["tokio"] }
 
 # SFTP/SCP support
 # russh 0.52+ folded the former `russh-keys` crate in as `russh::keys`
 # (RUSTSEC-2026-0154/0153); the SFTP handler uses it via that path.
-russh = "0.62"
+russh = "0.65"
 russh-sftp = "2.3"
 
 # S3 support
-rust-s3 = { version = "0.37", default-features = false, features = [
+rust-s3 = { version = "0.38", default-features = false, features = [
     "tokio-rustls-tls",
 ] }
 

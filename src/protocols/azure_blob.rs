@@ -9,17 +9,17 @@ use reqwest::Client;
 use tokio::io::AsyncWriteExt;
 
 use super::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 pub struct AzureBlobHandler;
 
 /// Parse az://container/blob or azblob://container/blob → (account, container, blob).
 /// Account is read from AZURE_STORAGE_ACCOUNT env var.
-fn parse_azure_url(url: &str) -> AftResult<(String, String, String)> {
+fn parse_azure_url(url: &str) -> IftResult<(String, String, String)> {
     let rest = url
         .strip_prefix("az://")
         .or_else(|| url.strip_prefix("azblob://"))
-        .ok_or_else(|| AftError::InvalidUrl("Not an az:// or azblob:// URL".into()))?;
+        .ok_or_else(|| IftError::InvalidUrl("Not an az:// or azblob:// URL".into()))?;
 
     let (container, blob) = match rest.find('/') {
         Some(i) => (rest[..i].to_string(), rest[i + 1..].to_string()),
@@ -27,13 +27,13 @@ fn parse_azure_url(url: &str) -> AftResult<(String, String, String)> {
     };
 
     if container.is_empty() {
-        return Err(AftError::InvalidUrl(
+        return Err(IftError::InvalidUrl(
             "Azure Blob URL missing container name".into(),
         ));
     }
 
     let account = std::env::var("AZURE_STORAGE_ACCOUNT").map_err(|_| {
-        AftError::Other(
+        IftError::Other(
             "AZURE_STORAGE_ACCOUNT environment variable is required for az:// URLs".into(),
         )
     })?;
@@ -42,7 +42,7 @@ fn parse_azure_url(url: &str) -> AftResult<(String, String, String)> {
 }
 
 /// Get the storage key from env, or fall back to SAS token.
-fn get_azure_auth(opts: &ProtocolOptions) -> AftResult<AzureAuth> {
+fn get_azure_auth(opts: &ProtocolOptions) -> IftResult<AzureAuth> {
     // Check for SAS token in bearer_token
     if let Some(ref token) = opts.bearer_token {
         return Ok(AzureAuth::Sas(token.clone()));
@@ -63,7 +63,7 @@ fn get_azure_auth(opts: &ProtocolOptions) -> AftResult<AzureAuth> {
         return Ok(AzureAuth::SharedKey(pass.clone()));
     }
 
-    Err(AftError::Other(
+    Err(IftError::Other(
         "Azure Blob auth required: set AZURE_STORAGE_KEY, AZURE_STORAGE_SAS, or use --bearer-token with a SAS token".into(),
     ))
 }
@@ -98,7 +98,7 @@ fn build_container_url(account: &str, container: &str, auth: &AzureAuth) -> Stri
     }
 }
 
-fn build_client(opts: &ProtocolOptions) -> AftResult<Client> {
+fn build_client(opts: &ProtocolOptions) -> IftResult<Client> {
     let mut builder = Client::builder().danger_accept_invalid_certs(opts.insecure);
 
     if opts.connect_timeout_secs > 0 {
@@ -111,12 +111,12 @@ fn build_client(opts: &ProtocolOptions) -> AftResult<Client> {
     builder = builder.user_agent(
         opts.user_agent
             .as_deref()
-            .unwrap_or(&format!("aft/{}", env!("CARGO_PKG_VERSION"))),
+            .unwrap_or(&format!("ift/{}", env!("CARGO_PKG_VERSION"))),
     );
 
     builder
         .build()
-        .map_err(|e| AftError::ConnectionFailed(e.to_string()))
+        .map_err(|e| IftError::ConnectionFailed(e.to_string()))
 }
 
 fn apply_shared_key_header(
@@ -155,7 +155,7 @@ impl ProtocolHandler for AzureBlobHandler {
         true
     }
 
-    async fn head(&self, url: &str, opts: &ProtocolOptions) -> AftResult<ResourceMetadata> {
+    async fn head(&self, url: &str, opts: &ProtocolOptions) -> IftResult<ResourceMetadata> {
         let (account, container, blob) = parse_azure_url(url)?;
         let auth = get_azure_auth(opts)?;
         let blob_url = build_blob_url(&account, &container, &blob, &auth);
@@ -165,7 +165,7 @@ impl ProtocolHandler for AzureBlobHandler {
         let resp = req.send().await?;
 
         if !resp.status().is_success() {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: format!("Azure Blob HEAD failed: {}", resp.status()),
             });
@@ -208,7 +208,7 @@ impl ProtocolHandler for AzureBlobHandler {
         opts: &ProtocolOptions,
         resume_from: Option<u64>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (account, container, blob) = parse_azure_url(url)?;
         let auth = get_azure_auth(opts)?;
         let blob_url = build_blob_url(&account, &container, &blob, &auth);
@@ -224,7 +224,7 @@ impl ProtocolHandler for AzureBlobHandler {
 
         let resp = req.send().await?;
         if !resp.status().is_success() && resp.status() != reqwest::StatusCode::PARTIAL_CONTENT {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: format!("Azure Blob GET failed: {}", resp.status()),
             });
@@ -246,7 +246,7 @@ impl ProtocolHandler for AzureBlobHandler {
         let mut stream = resp.bytes_stream();
 
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| AftError::TransferFailed(e.to_string()))?;
+            let chunk = chunk.map_err(|e| IftError::TransferFailed(e.to_string()))?;
             file.write_all(&chunk).await?;
             downloaded += chunk.len() as u64;
             if let Some(ref cb) = progress {
@@ -264,7 +264,7 @@ impl ProtocolHandler for AzureBlobHandler {
         start: u64,
         end: u64,
         opts: &ProtocolOptions,
-    ) -> AftResult<Vec<u8>> {
+    ) -> IftResult<Vec<u8>> {
         let (account, container, blob) = parse_azure_url(url)?;
         let auth = get_azure_auth(opts)?;
         let blob_url = build_blob_url(&account, &container, &blob, &auth);
@@ -275,7 +275,7 @@ impl ProtocolHandler for AzureBlobHandler {
 
         let resp = req.send().await?;
         if !resp.status().is_success() && resp.status() != reqwest::StatusCode::PARTIAL_CONTENT {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: format!("Azure Blob GET range failed: {}", resp.status()),
             });
@@ -284,7 +284,7 @@ impl ProtocolHandler for AzureBlobHandler {
         let bytes = resp
             .bytes()
             .await
-            .map_err(|e| AftError::TransferFailed(e.to_string()))?;
+            .map_err(|e| IftError::TransferFailed(e.to_string()))?;
         Ok(bytes.to_vec())
     }
 
@@ -296,7 +296,7 @@ impl ProtocolHandler for AzureBlobHandler {
         content_type: Option<&str>,
         _method: Option<&str>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (account, container, blob) = parse_azure_url(url)?;
         let auth = get_azure_auth(opts)?;
         let blob_url = build_blob_url(&account, &container, &blob, &auth);
@@ -313,7 +313,7 @@ impl ProtocolHandler for AzureBlobHandler {
 
         let resp = req.send().await?;
         if !resp.status().is_success() {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: format!("Azure Blob PUT failed: {}", resp.status()),
             });
@@ -326,7 +326,7 @@ impl ProtocolHandler for AzureBlobHandler {
         Ok(file_size)
     }
 
-    async fn list(&self, url: &str, opts: &ProtocolOptions) -> AftResult<Vec<DirectoryEntry>> {
+    async fn list(&self, url: &str, opts: &ProtocolOptions) -> IftResult<Vec<DirectoryEntry>> {
         let (account, container, prefix) = parse_azure_url(url)?;
         let auth = get_azure_auth(opts)?;
         let client = build_client(opts)?;
@@ -344,7 +344,7 @@ impl ProtocolHandler for AzureBlobHandler {
         let resp = req.send().await?;
 
         if !resp.status().is_success() {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: format!("Azure Blob LIST failed: {}", resp.status()),
             });
@@ -353,7 +353,7 @@ impl ProtocolHandler for AzureBlobHandler {
         let body = resp
             .text()
             .await
-            .map_err(|e| AftError::Other(format!("Azure list body: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("Azure list body: {}", e)))?;
 
         Ok(parse_azure_list_response(&body, &prefix))
     }

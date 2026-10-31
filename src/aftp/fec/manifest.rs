@@ -47,7 +47,7 @@ use ic_hash::Sha256;
 use crate::aftp::frame::{
     get_bytes, get_str, get_u32, get_u64, get_u8, put_bytes, put_str, put_u32, put_u64, put_u8,
 };
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 use super::transfer::BlockReader;
 
@@ -85,11 +85,11 @@ impl EntryKind {
         }
     }
 
-    fn from_u8(v: u8) -> AftResult<Self> {
+    fn from_u8(v: u8) -> IftResult<Self> {
         match v {
             0 => Ok(EntryKind::File),
             1 => Ok(EntryKind::Dir),
-            other => Err(AftError::Other(format!(
+            other => Err(IftError::Other(format!(
                 "manifest: unknown entry kind {other}"
             ))),
         }
@@ -130,31 +130,31 @@ pub struct Manifest {
 /// could not safely reconstruct) and when parsing a peer's manifest (so a
 /// hostile manifest cannot write outside the destination root — the tree
 /// analogue of zip-slip).
-fn validate_rel_path(path: &str) -> AftResult<()> {
+fn validate_rel_path(path: &str) -> IftResult<()> {
     if path.is_empty() {
-        return Err(AftError::Other("manifest: empty path".into()));
+        return Err(IftError::Other("manifest: empty path".into()));
     }
     if path.starts_with('/') || path.starts_with('\\') {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "manifest: absolute path not allowed: {path}"
         )));
     }
     // A Windows drive prefix (`C:`) is absolute in effect.
     if path.len() >= 2 && path.as_bytes()[1] == b':' {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "manifest: drive-qualified path not allowed: {path}"
         )));
     }
     for comp in path.split('/') {
         if comp.is_empty() || comp == "." || comp == ".." {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "manifest: unsafe path component in {path}"
             )));
         }
         // Backslashes are separators on Windows; a manifest path is always
         // `/`-separated, so an embedded backslash is an attempt to smuggle one.
         if comp.contains('\\') {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "manifest: backslash in path component of {path}"
             )));
         }
@@ -237,7 +237,7 @@ pub struct BuildResult {
 /// non-overlapping offsets in manifest order; the entries are sorted by path so
 /// that both ends of a transfer agree on the layout and the Merkle root is
 /// stable regardless of directory-read order.
-pub async fn build_manifest(root: &Path) -> AftResult<BuildResult> {
+pub async fn build_manifest(root: &Path) -> IftResult<BuildResult> {
     let mut files: Vec<(String, u32, u64, [u8; 32])> = Vec::new();
     let mut dirs: Vec<(String, u32)> = Vec::new();
     let mut symlinks_skipped: u64 = 0;
@@ -308,10 +308,10 @@ pub async fn build_manifest(root: &Path) -> AftResult<BuildResult> {
     })
 }
 
-fn rel_path(root: &Path, path: &Path) -> AftResult<String> {
+fn rel_path(root: &Path, path: &Path) -> IftResult<String> {
     let rel = path
         .strip_prefix(root)
-        .map_err(|_| AftError::Other("manifest: entry outside tree root".into()))?;
+        .map_err(|_| IftError::Other("manifest: entry outside tree root".into()))?;
     let mut out = String::new();
     for comp in rel.components() {
         use std::path::Component;
@@ -324,7 +324,7 @@ fn rel_path(root: &Path, path: &Path) -> AftResult<String> {
             }
             // The tree walk only ever produces normal components below `root`.
             _ => {
-                return Err(AftError::Other(
+                return Err(IftError::Other(
                     "manifest: unexpected path component".into(),
                 ))
             }
@@ -345,7 +345,7 @@ fn mode_of(_meta: &std::fs::Metadata) -> u32 {
     0
 }
 
-async fn hash_file(path: &Path) -> AftResult<(u64, [u8; 32])> {
+async fn hash_file(path: &Path) -> IftResult<(u64, [u8; 32])> {
     use tokio::io::AsyncReadExt;
     let mut f = tokio::fs::File::open(path).await?;
     let mut hasher = Sha256::new();
@@ -395,24 +395,24 @@ impl Manifest {
     /// every path safe, files laid out contiguously with no gaps or overlaps,
     /// `total_len` consistent with the file sizes, and the Merkle root matching
     /// the recomputed one. A manifest that survives this is safe to unpack.
-    pub fn decode(buf: &[u8]) -> AftResult<Self> {
+    pub fn decode(buf: &[u8]) -> IftResult<Self> {
         let mut off = 0usize;
         let version = get_u8(buf, &mut off)?;
         if version != MANIFEST_VERSION {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "manifest: unsupported version {version}"
             )));
         }
         let count = get_u32(buf, &mut off)?;
         if count > MANIFEST_MAX_ENTRIES {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "manifest: entry count {count} exceeds cap {MANIFEST_MAX_ENTRIES}"
             )));
         }
         let total_len = get_u64(buf, &mut off)?;
         let root = get_bytes(buf, &mut off)?;
         if root.len() != 32 {
-            return Err(AftError::Other("manifest: bad merkle root length".into()));
+            return Err(IftError::Other("manifest: bad merkle root length".into()));
         }
         let mut merkle_root = [0u8; 32];
         merkle_root.copy_from_slice(&root);
@@ -426,7 +426,7 @@ impl Manifest {
             let offset = get_u64(buf, &mut off)?;
             let sha_raw = get_bytes(buf, &mut off)?;
             if sha_raw.len() != 32 {
-                return Err(AftError::Other("manifest: bad sha256 length".into()));
+                return Err(IftError::Other("manifest: bad sha256 length".into()));
             }
             let mut sha256 = [0u8; 32];
             sha256.copy_from_slice(&sha_raw);
@@ -436,19 +436,19 @@ impl Manifest {
             match kind {
                 EntryKind::Dir => {
                     if size != 0 || offset != 0 {
-                        return Err(AftError::Other(
+                        return Err(IftError::Other(
                             "manifest: directory entry with nonzero size/offset".into(),
                         ));
                     }
                 }
                 EntryKind::File => {
                     if offset != expected_offset {
-                        return Err(AftError::Other(format!(
+                        return Err(IftError::Other(format!(
                             "manifest: file {path} offset {offset} not contiguous (expected {expected_offset})"
                         )));
                     }
                     expected_offset = expected_offset.checked_add(size).ok_or_else(|| {
-                        AftError::Other("manifest: packed length overflow".into())
+                        IftError::Other("manifest: packed length overflow".into())
                     })?;
                 }
             }
@@ -463,7 +463,7 @@ impl Manifest {
         }
 
         if expected_offset != total_len {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "manifest: total_len {total_len} disagrees with summed file sizes {expected_offset}"
             )));
         }
@@ -474,7 +474,7 @@ impl Manifest {
             merkle_root,
         };
         if m.computed_root() != m.merkle_root {
-            return Err(AftError::Other(
+            return Err(IftError::Other(
                 "manifest: merkle root does not match entries".into(),
             ));
         }
@@ -545,12 +545,12 @@ impl PackedTreeReader {
 
 #[async_trait::async_trait]
 impl BlockReader for PackedTreeReader {
-    async fn read_block(&self, start: u64, len: usize) -> AftResult<Vec<u8>> {
+    async fn read_block(&self, start: u64, len: usize) -> IftResult<Vec<u8>> {
         use tokio::io::{AsyncReadExt, AsyncSeekExt};
         let end = start
             .checked_add(len as u64)
             .filter(|e| *e <= self.total_len)
-            .ok_or_else(|| AftError::Other("packed read out of bounds".into()))?;
+            .ok_or_else(|| IftError::Other("packed read out of bounds".into()))?;
 
         let mut out = vec![0u8; len];
         let mut cursor = start;
@@ -580,7 +580,7 @@ impl BlockReader for PackedTreeReader {
             let (foff, fsize, fpath) = self
                 .files
                 .get(idx)
-                .ok_or_else(|| AftError::Other("packed read past end of files".into()))?;
+                .ok_or_else(|| IftError::Other("packed read past end of files".into()))?;
             let within = fcur - foff; // offset inside this file
             let avail = fsize - within; // bytes left in this file
             let want = (fend - fcur).min(avail) as usize;
@@ -602,14 +602,14 @@ impl BlockReader for PackedTreeReader {
 /// region begins (`8 + manifest_len`). The length is bounded by
 /// [`MANIFEST_MAX_BYTES`] so a corrupt or hostile prefix cannot drive an
 /// unbounded read before [`Manifest::decode`] gets to validate the rest.
-pub async fn read_manifest_prefix(packed_path: &Path) -> AftResult<(Manifest, u64)> {
+pub async fn read_manifest_prefix(packed_path: &Path) -> IftResult<(Manifest, u64)> {
     use tokio::io::AsyncReadExt;
     let mut f = tokio::fs::File::open(packed_path).await?;
     let mut len_buf = [0u8; 8];
     f.read_exact(&mut len_buf).await?;
     let mlen = u64::from_le_bytes(len_buf);
     if mlen > MANIFEST_MAX_BYTES as u64 {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "packed manifest length {mlen} exceeds cap {MANIFEST_MAX_BYTES}"
         )));
     }
@@ -638,7 +638,7 @@ pub async fn unpack_tree(
     manifest: &Manifest,
     dest_root: &Path,
     data_base: u64,
-) -> AftResult<u64> {
+) -> IftResult<u64> {
     use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
     tokio::fs::create_dir_all(dest_root).await?;
@@ -691,7 +691,7 @@ pub async fn unpack_tree(
         let got: [u8; 32] = hasher.finalize().into();
         if got != e.sha256 {
             let _ = tokio::fs::remove_file(&tmp).await;
-            return Err(AftError::ChecksumMismatch {
+            return Err(IftError::ChecksumMismatch {
                 expected: hex::encode(e.sha256),
                 actual: hex::encode(got),
             });
@@ -708,7 +708,7 @@ pub async fn unpack_tree(
 /// and confirm the result stays inside it. `validate_rel_path` already rejects
 /// `..` and absolute paths, so this is defense in depth against any component we
 /// failed to anticipate on the current platform.
-fn safe_join(canonical_root: &Path, rel: &str) -> AftResult<PathBuf> {
+fn safe_join(canonical_root: &Path, rel: &str) -> IftResult<PathBuf> {
     validate_rel_path(rel)?;
     let mut target = canonical_root.to_path_buf();
     for comp in rel.split('/') {
@@ -719,7 +719,7 @@ fn safe_join(canonical_root: &Path, rel: &str) -> AftResult<PathBuf> {
     // rejected. We confirm the prefix relationship directly rather than
     // canonicalize, because the target does not exist yet.
     if !target.starts_with(canonical_root) {
-        return Err(AftError::PermissionDenied(format!(
+        return Err(IftError::PermissionDenied(format!(
             "manifest path {rel} escapes destination root"
         )));
     }

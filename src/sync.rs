@@ -14,7 +14,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use crate::engine::{self, ProgressCb, TransferConfig};
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 use crate::protocols::{DirectoryEntry, ProtocolHandler, ProtocolOptions};
 
 /// How to decide whether a file needs updating
@@ -131,7 +131,7 @@ pub async fn sync(
     opts: &ProtocolOptions,
     config: &SyncConfig,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<SyncResult> {
+) -> IftResult<SyncResult> {
     let start = std::time::Instant::now();
     let effective_max_depth = if config.max_depth == 0 {
         MAX_SYNC_DEPTH
@@ -150,7 +150,7 @@ pub async fn sync(
         .await
     {
         Ok(entries) => entries,
-        Err(AftError::FileNotFound(_)) => Vec::new(),
+        Err(IftError::FileNotFound(_)) => Vec::new(),
         Err(e) => return Err(e),
     };
 
@@ -382,7 +382,7 @@ pub async fn sync(
             .filter(|a| a.kind == SyncActionKind::Copy)
             .collect();
 
-        let copy_results: Vec<AftResult<u64>> = futures::stream::iter(copies)
+        let copy_results: Vec<IftResult<u64>> = futures::stream::iter(copies)
             .map(|action| {
                 let rel = action.relative_path.as_str();
                 let src_url = join_url(src_base, rel);
@@ -433,7 +433,7 @@ pub async fn sync(
             })
             .collect();
 
-        let delete_results: Vec<AftResult<()>> = futures::stream::iter(file_deletes)
+        let delete_results: Vec<IftResult<()>> = futures::stream::iter(file_deletes)
             .map(|action| {
                 let dst_url = join_url(dst_base, &action.relative_path);
                 async move { dst_handler.delete(&dst_url, false, opts).await }
@@ -498,7 +498,7 @@ async fn transfer_file(
     opts: &ProtocolOptions,
     config: &TransferConfig,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<u64> {
+) -> IftResult<u64> {
     if src_handler.scheme() == "file" && dst_handler.scheme() == "file" {
         // Direct local-to-local via engine
         let dest_path = PathBuf::from(local_path_from_url(dst_url));
@@ -511,7 +511,7 @@ async fn transfer_file(
     } else {
         // Cross-protocol: download to temp, then upload
         let temp_name = format!(
-            "aft-sync-{}-{}",
+            "ift-sync-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

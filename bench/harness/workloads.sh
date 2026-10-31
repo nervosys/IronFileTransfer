@@ -7,7 +7,7 @@
 # byte counts meaningless.
 set -euo pipefail
 
-ROOT=${1:-${BENCH_ROOT:-$HOME/aft-bench}/data}
+ROOT=${1:-${BENCH_ROOT:-$HOME/ift-bench}/data}
 
 # Deterministic incompressible stream of $1 bytes seeded by label $2.
 prand() {
@@ -16,7 +16,7 @@ prand() {
   # `head -c` kills openssl with SIGPIPE, which pipefail then turns into a
   # spurious script failure. AES-CTR is a stream cipher, so out_len == in_len.
   head -c "$bytes" /dev/zero \
-    | openssl enc -aes-256-ctr -pass "pass:aft-bench-$seed" -nosalt 2>/dev/null
+    | openssl enc -aes-256-ctr -pass "pass:ift-bench-$seed" -nosalt 2>/dev/null
 }
 
 mkfile() { # path bytes seed

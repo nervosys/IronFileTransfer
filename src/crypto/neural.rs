@@ -26,7 +26,7 @@ use std::path::Path;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 /// Block size in bytes (128-bit blocks, matching AES).
 pub const BLOCK_SIZE: usize = 16;
@@ -522,7 +522,7 @@ impl NeuralCipher {
         if data.len() < 6 || &data[..4] != MODEL_MAGIC {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                "Not an AFT neural model file",
+                "Not an IFT neural model file",
             ));
         }
         if data[4] != MODEL_VERSION {
@@ -631,14 +631,14 @@ fn read_network(data: &[u8], pos: &mut usize) -> std::io::Result<Network> {
 /// Verify a neural model file against its `.sha256` sidecar signature.
 /// If no sidecar exists, the model is accepted (backward-compatible).
 /// If a sidecar exists, the hash must match or the load is rejected.
-fn verify_model_signature(model_path: &Path) -> AftResult<()> {
+fn verify_model_signature(model_path: &Path) -> IftResult<()> {
     let sig_path = model_path.with_extension("aftnn.sha256");
     if !sig_path.exists() {
         return Ok(());
     }
 
     let expected_hash = std::fs::read_to_string(&sig_path)
-        .map_err(|e| AftError::Other(format!("Cannot read model signature {:?}: {}", sig_path, e)))?
+        .map_err(|e| IftError::Other(format!("Cannot read model signature {:?}: {}", sig_path, e)))?
         .split_whitespace()
         .next()
         .unwrap_or("")
@@ -646,19 +646,19 @@ fn verify_model_signature(model_path: &Path) -> AftResult<()> {
         .to_lowercase();
 
     if expected_hash.len() != 64 || !expected_hash.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "Invalid SHA-256 hash in {:?}: expected 64 hex chars",
             sig_path,
         )));
     }
 
     let model_bytes = std::fs::read(model_path)
-        .map_err(|e| AftError::Other(format!("Cannot read model file {:?}: {}", model_path, e)))?;
+        .map_err(|e| IftError::Other(format!("Cannot read model file {:?}: {}", model_path, e)))?;
 
     let actual_hash = hex::encode(crate::crypto::primitives::sha256(&model_bytes));
 
     if actual_hash != expected_hash {
-        return Err(AftError::PermissionDenied(format!(
+        return Err(IftError::PermissionDenied(format!(
             "Neural model signature mismatch for {:?}: expected {}, got {}. \
              Model may have been tampered with.",
             model_path, expected_hash, actual_hash,
@@ -669,17 +669,17 @@ fn verify_model_signature(model_path: &Path) -> AftResult<()> {
 }
 
 /// Encrypt file data using a saved neural model.
-pub fn encrypt_file_data(plaintext: &[u8], model_path: &Path) -> AftResult<Vec<u8>> {
+pub fn encrypt_file_data(plaintext: &[u8], model_path: &Path) -> IftResult<Vec<u8>> {
     verify_model_signature(model_path)?;
     let cipher = NeuralCipher::load(model_path)
-        .map_err(|e| AftError::Other(format!("Failed to load neural model: {}", e)))?;
+        .map_err(|e| IftError::Other(format!("Failed to load neural model: {}", e)))?;
     Ok(cipher.encrypt(plaintext))
 }
 
 /// Decrypt file data using a saved neural model.
-pub fn decrypt_file_data(ciphertext: &[u8], model_path: &Path) -> AftResult<Vec<u8>> {
+pub fn decrypt_file_data(ciphertext: &[u8], model_path: &Path) -> IftResult<Vec<u8>> {
     verify_model_signature(model_path)?;
     let cipher = NeuralCipher::load(model_path)
-        .map_err(|e| AftError::Other(format!("Failed to load neural model: {}", e)))?;
+        .map_err(|e| IftError::Other(format!("Failed to load neural model: {}", e)))?;
     Ok(cipher.decrypt(ciphertext))
 }

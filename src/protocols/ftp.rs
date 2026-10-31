@@ -9,7 +9,7 @@ use suppaftp::AsyncFtpStream;
 use tokio::io::AsyncWriteExt;
 
 use super::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 pub struct FtpHandler {
     scheme: String,
@@ -23,13 +23,13 @@ impl FtpHandler {
 
 /// Parse an FTP URL into (host, port, user, password, path).
 #[allow(clippy::type_complexity)]
-fn parse_ftp_url(url: &str) -> AftResult<(String, u16, Option<String>, Option<String>, String)> {
+fn parse_ftp_url(url: &str) -> IftResult<(String, u16, Option<String>, Option<String>, String)> {
     let parsed = url::Url::parse(url)
-        .map_err(|e| AftError::InvalidUrl(format!("Invalid FTP URL: {}", e)))?;
+        .map_err(|e| IftError::InvalidUrl(format!("Invalid FTP URL: {}", e)))?;
 
     let host = parsed
         .host_str()
-        .ok_or_else(|| AftError::InvalidUrl("FTP URL missing host".into()))?
+        .ok_or_else(|| IftError::InvalidUrl("FTP URL missing host".into()))?
         .to_string();
     let port = parsed.port().unwrap_or(21);
     let user = if parsed.username().is_empty() {
@@ -47,13 +47,13 @@ async fn connect_ftp(
     url: &str,
     opts: &ProtocolOptions,
     _scheme: &str,
-) -> AftResult<(AsyncFtpStream, String)> {
+) -> IftResult<(AsyncFtpStream, String)> {
     let (host, port, user, pass, path) = parse_ftp_url(url)?;
 
     let addr = format!("{}:{}", host, port);
     let mut ftp = AsyncFtpStream::connect(addr)
         .await
-        .map_err(|e| AftError::ConnectionFailed(format!("FTP connect: {}", e)))?;
+        .map_err(|e| IftError::ConnectionFailed(format!("FTP connect: {}", e)))?;
 
     // Login
     let login_user = user
@@ -61,16 +61,16 @@ async fn connect_ftp(
         .unwrap_or_else(|| "anonymous".to_string());
     let login_pass = pass
         .or_else(|| opts.basic_auth.as_ref().map(|(_, p)| p.clone()))
-        .unwrap_or_else(|| "aft@".to_string());
+        .unwrap_or_else(|| "ift@".to_string());
 
     ftp.login(&login_user, &login_pass)
         .await
-        .map_err(|e| AftError::ConnectionFailed(format!("FTP login: {}", e)))?;
+        .map_err(|e| IftError::ConnectionFailed(format!("FTP login: {}", e)))?;
 
     // Use binary mode
     ftp.transfer_type(suppaftp::types::FileType::Binary)
         .await
-        .map_err(|e| AftError::Other(format!("FTP binary mode: {}", e)))?;
+        .map_err(|e| IftError::Other(format!("FTP binary mode: {}", e)))?;
 
     Ok((ftp, path))
 }
@@ -93,13 +93,13 @@ impl ProtocolHandler for FtpHandler {
         true
     }
 
-    async fn head(&self, url: &str, opts: &ProtocolOptions) -> AftResult<ResourceMetadata> {
+    async fn head(&self, url: &str, opts: &ProtocolOptions) -> IftResult<ResourceMetadata> {
         let (mut ftp, path) = connect_ftp(url, opts, &self.scheme).await?;
 
         let size = ftp
             .size(&path)
             .await
-            .map_err(|e| AftError::Other(format!("FTP SIZE: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("FTP SIZE: {}", e)))?;
 
         let mdtm = ftp.mdtm(&path).await.ok().map(|dt| dt.to_string());
 
@@ -122,7 +122,7 @@ impl ProtocolHandler for FtpHandler {
         opts: &ProtocolOptions,
         resume_from: Option<u64>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (mut ftp, path) = connect_ftp(url, opts, &self.scheme).await?;
 
         let total_size = ftp.size(&path).await.ok().map(|s| s as u64);
@@ -130,22 +130,22 @@ impl ProtocolHandler for FtpHandler {
         if let Some(offset) = resume_from {
             ftp.resume_transfer(offset as usize)
                 .await
-                .map_err(|e| AftError::Other(format!("FTP REST: {}", e)))?;
+                .map_err(|e| IftError::Other(format!("FTP REST: {}", e)))?;
         }
 
         let mut stream = ftp
             .retr_as_stream(&path)
             .await
-            .map_err(|e| AftError::TransferFailed(format!("FTP RETR: {}", e)))?;
+            .map_err(|e| IftError::TransferFailed(format!("FTP RETR: {}", e)))?;
 
         let mut data = Vec::new();
         FuturesReadExt::read_to_end(&mut stream, &mut data)
             .await
-            .map_err(|e| AftError::TransferFailed(format!("FTP read: {}", e)))?;
+            .map_err(|e| IftError::TransferFailed(format!("FTP read: {}", e)))?;
 
         ftp.finalize_retr_stream(stream)
             .await
-            .map_err(|e| AftError::Other(format!("FTP finalize: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("FTP finalize: {}", e)))?;
 
         let bytes_len = data.len() as u64;
 
@@ -176,26 +176,26 @@ impl ProtocolHandler for FtpHandler {
         start: u64,
         end: u64,
         opts: &ProtocolOptions,
-    ) -> AftResult<Vec<u8>> {
+    ) -> IftResult<Vec<u8>> {
         let (mut ftp, path) = connect_ftp(url, opts, &self.scheme).await?;
 
         ftp.resume_transfer(start as usize)
             .await
-            .map_err(|e| AftError::Other(format!("FTP REST: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("FTP REST: {}", e)))?;
 
         let mut stream = ftp
             .retr_as_stream(&path)
             .await
-            .map_err(|e| AftError::TransferFailed(format!("FTP RETR range: {}", e)))?;
+            .map_err(|e| IftError::TransferFailed(format!("FTP RETR range: {}", e)))?;
 
         let mut data = Vec::new();
         FuturesReadExt::read_to_end(&mut stream, &mut data)
             .await
-            .map_err(|e| AftError::TransferFailed(format!("FTP read: {}", e)))?;
+            .map_err(|e| IftError::TransferFailed(format!("FTP read: {}", e)))?;
 
         ftp.finalize_retr_stream(stream)
             .await
-            .map_err(|e| AftError::Other(format!("FTP finalize: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("FTP finalize: {}", e)))?;
 
         // Truncate to requested range
         let expected_len = (end - start + 1) as usize;
@@ -213,7 +213,7 @@ impl ProtocolHandler for FtpHandler {
         _content_type: Option<&str>,
         _method: Option<&str>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (mut ftp, path) = connect_ftp(url, opts, &self.scheme).await?;
 
         let data = tokio::fs::read(source).await?;
@@ -222,7 +222,7 @@ impl ProtocolHandler for FtpHandler {
 
         ftp.put_file(&path, &mut cursor)
             .await
-            .map_err(|e| AftError::TransferFailed(format!("FTP STOR: {}", e)))?;
+            .map_err(|e| IftError::TransferFailed(format!("FTP STOR: {}", e)))?;
 
         if let Some(ref cb) = progress {
             cb(file_size, Some(file_size));
@@ -232,7 +232,7 @@ impl ProtocolHandler for FtpHandler {
         Ok(file_size)
     }
 
-    async fn list(&self, url: &str, opts: &ProtocolOptions) -> AftResult<Vec<DirectoryEntry>> {
+    async fn list(&self, url: &str, opts: &ProtocolOptions) -> IftResult<Vec<DirectoryEntry>> {
         let (mut ftp, path) = connect_ftp(url, opts, &self.scheme).await?;
 
         let list_path = if path.is_empty() || path == "/" {
@@ -244,7 +244,7 @@ impl ProtocolHandler for FtpHandler {
         let raw_entries = ftp
             .list(list_path)
             .await
-            .map_err(|e| AftError::Other(format!("FTP LIST: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("FTP LIST: {}", e)))?;
 
         let _ = ftp.quit().await;
 

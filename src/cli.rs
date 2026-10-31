@@ -31,32 +31,32 @@ pub enum CliCompareMode {
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "aft",
+    name = "ift",
     version,
-    about = "Agentic File Transfer — High-performance file transfer for humans and AI agents",
+    about = "Iron File Transfer — High-performance file transfer for humans and AI agents",
     long_about = "\
-AFT (Agentic File Transfer) is a high-performance, protocol-agnostic file transfer CLI \
+IFT (Iron File Transfer) is a high-performance, protocol-agnostic file transfer CLI \
 designed for both human operators and AI agents. It provides structured output, \
 self-describing schemas, and optimized transfer engines across HTTP/HTTPS, FTP, \
 SFTP, S3, and local file protocols.\n\n\
 AGENTIC USAGE:\n  \
   Use --agent or --format json for structured machine-readable output.\n  \
-  Use 'aft schema' to discover all capabilities programmatically.\n  \
-  Use 'aft capabilities' to list available protocols and features.\n  \
+  Use 'ift schema' to discover all capabilities programmatically.\n  \
+  Use 'ift capabilities' to list available protocols and features.\n  \
   All operations return a consistent JSON schema with status, transfer metrics, and errors.",
     after_help = "\
 EXAMPLES:\n  \
-  aft get https://example.com/file.tar.gz\n  \
-  aft get https://example.com/file.tar.gz -o ./downloads/\n  \
-  aft put ./report.pdf https://upload.example.com/files/\n  \
-  aft copy ./src/ ./backup/src/\n  \
-  aft head https://example.com/file.tar.gz\n  \
-  aft schema\n  \
-  aft capabilities\n  \
-  aft checksum ./file.tar.gz --algorithm sha256\n\n\
+  ift get https://example.com/file.tar.gz\n  \
+  ift get https://example.com/file.tar.gz -o ./downloads/\n  \
+  ift put ./report.pdf https://upload.example.com/files/\n  \
+  ift copy ./src/ ./backup/src/\n  \
+  ift head https://example.com/file.tar.gz\n  \
+  ift schema\n  \
+  ift capabilities\n  \
+  ift checksum ./file.tar.gz --algorithm sha256\n\n\
 AGENT MODE:\n  \
-  aft --agent get https://example.com/data.json\n  \
-  aft --format json head https://example.com/file.tar.gz"
+  ift --agent get https://example.com/data.json\n  \
+  ift --format json head https://example.com/file.tar.gz"
 )]
 pub struct Cli {
     #[command(subcommand)]

@@ -7,7 +7,7 @@
 //! - Buffered I/O copy with configurable buffer sizes
 //! - Tokio async file copy (simulates engine I/O path)
 //!
-//! These establish the baseline disk I/O throughput that AFT's turbo engine
+//! These establish the baseline disk I/O throughput that IFT's turbo engine
 //! operates on top of.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
@@ -55,7 +55,7 @@ fn bench_std_copy(c: &mut Criterion) {
     group.finish();
 }
 
-/// Buffered I/O copy with AFT's 4 MB buffer size
+/// Buffered I/O copy with IFT's 4 MB buffer size
 fn bench_buffered_copy(c: &mut Criterion) {
     const BUF_SIZE: usize = 4 * 1024 * 1024; // IO_BUF_SIZE from turbo.rs
 
@@ -91,7 +91,7 @@ fn bench_buffered_copy(c: &mut Criterion) {
     group.finish();
 }
 
-/// Tokio async file copy — simulates AFT's async engine path
+/// Tokio async file copy — simulates IFT's async engine path
 fn bench_tokio_copy(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("tokio_async_copy");
@@ -116,7 +116,7 @@ fn bench_tokio_copy(c: &mut Criterion) {
     group.finish();
 }
 
-/// CRC32 + SHA-256 combined: simulates AFT's per-frame CRC32 + transfer SHA-256 integrity
+/// CRC32 + SHA-256 combined: simulates IFT's per-frame CRC32 + transfer SHA-256 integrity
 fn bench_integrity_pipeline(c: &mut Criterion) {
     use sha2::{Digest, Sha256};
 

@@ -9,7 +9,7 @@ use reqwest::Client;
 use tokio::io::AsyncWriteExt;
 
 use super::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 pub struct WebDavHandler {
     scheme: String,
@@ -20,7 +20,7 @@ impl WebDavHandler {
         Self { scheme }
     }
 
-    fn build_client(&self, opts: &ProtocolOptions) -> AftResult<Client> {
+    fn build_client(&self, opts: &ProtocolOptions) -> IftResult<Client> {
         let mut builder = Client::builder()
             .danger_accept_invalid_certs(opts.insecure)
             .redirect(reqwest::redirect::Policy::limited(opts.max_redirects));
@@ -35,12 +35,12 @@ impl WebDavHandler {
         if let Some(ref ua) = opts.user_agent {
             builder = builder.user_agent(ua.clone());
         } else {
-            builder = builder.user_agent(format!("aft/{}", env!("CARGO_PKG_VERSION")));
+            builder = builder.user_agent(format!("ift/{}", env!("CARGO_PKG_VERSION")));
         }
 
         builder
             .build()
-            .map_err(|e| AftError::ConnectionFailed(e.to_string()))
+            .map_err(|e| IftError::ConnectionFailed(e.to_string()))
     }
 
     fn apply_auth(
@@ -92,14 +92,14 @@ impl ProtocolHandler for WebDavHandler {
         true
     }
 
-    async fn head(&self, url: &str, opts: &ProtocolOptions) -> AftResult<ResourceMetadata> {
+    async fn head(&self, url: &str, opts: &ProtocolOptions) -> IftResult<ResourceMetadata> {
         let http_url = self.to_http_url(url);
         let client = self.build_client(opts)?;
         let req = self.apply_auth(client.head(&http_url), opts);
         let resp = req.send().await?;
 
         if !resp.status().is_success() {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: resp
                     .status()
@@ -150,7 +150,7 @@ impl ProtocolHandler for WebDavHandler {
         opts: &ProtocolOptions,
         resume_from: Option<u64>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let http_url = self.to_http_url(url);
         let client = self.build_client(opts)?;
         let mut req = self.apply_auth(client.get(&http_url), opts);
@@ -163,7 +163,7 @@ impl ProtocolHandler for WebDavHandler {
 
         let resp = req.send().await?;
         if !resp.status().is_success() && resp.status() != reqwest::StatusCode::PARTIAL_CONTENT {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: resp
                     .status()
@@ -189,7 +189,7 @@ impl ProtocolHandler for WebDavHandler {
         let mut stream = resp.bytes_stream();
 
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| AftError::TransferFailed(e.to_string()))?;
+            let chunk = chunk.map_err(|e| IftError::TransferFailed(e.to_string()))?;
             file.write_all(&chunk).await?;
             downloaded += chunk.len() as u64;
             if let Some(ref cb) = progress {
@@ -207,7 +207,7 @@ impl ProtocolHandler for WebDavHandler {
         start: u64,
         end: u64,
         opts: &ProtocolOptions,
-    ) -> AftResult<Vec<u8>> {
+    ) -> IftResult<Vec<u8>> {
         let http_url = self.to_http_url(url);
         let client = self.build_client(opts)?;
         let req = self
@@ -216,7 +216,7 @@ impl ProtocolHandler for WebDavHandler {
 
         let resp = req.send().await?;
         if resp.status() != reqwest::StatusCode::PARTIAL_CONTENT && !resp.status().is_success() {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: resp
                     .status()
@@ -229,7 +229,7 @@ impl ProtocolHandler for WebDavHandler {
         let bytes = resp
             .bytes()
             .await
-            .map_err(|e| AftError::TransferFailed(e.to_string()))?;
+            .map_err(|e| IftError::TransferFailed(e.to_string()))?;
         Ok(bytes.to_vec())
     }
 
@@ -241,7 +241,7 @@ impl ProtocolHandler for WebDavHandler {
         content_type: Option<&str>,
         _method: Option<&str>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let http_url = self.to_http_url(url);
         let file_size = tokio::fs::metadata(source).await?.len();
         let body = tokio::fs::read(source).await?;
@@ -255,7 +255,7 @@ impl ProtocolHandler for WebDavHandler {
 
         let resp = req.send().await?;
         if !resp.status().is_success() {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: resp
                     .status()
@@ -272,7 +272,7 @@ impl ProtocolHandler for WebDavHandler {
         Ok(file_size)
     }
 
-    async fn list(&self, url: &str, opts: &ProtocolOptions) -> AftResult<Vec<DirectoryEntry>> {
+    async fn list(&self, url: &str, opts: &ProtocolOptions) -> IftResult<Vec<DirectoryEntry>> {
         let http_url = self.to_http_url(url);
         let client = self.build_client(opts)?;
 
@@ -304,7 +304,7 @@ impl ProtocolHandler for WebDavHandler {
 
         // WebDAV returns 207 Multi-Status for PROPFIND
         if resp.status().as_u16() != 207 && !resp.status().is_success() {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: resp
                     .status()
@@ -317,7 +317,7 @@ impl ProtocolHandler for WebDavHandler {
         let body = resp
             .text()
             .await
-            .map_err(|e| AftError::Other(format!("WebDAV PROPFIND body: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("WebDAV PROPFIND body: {}", e)))?;
 
         Ok(parse_propfind_response(&body, &http_url))
     }

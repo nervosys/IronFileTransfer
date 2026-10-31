@@ -1,9 +1,9 @@
 // Copyright (c) 2024-2026 Nervosys LLC
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Integration and unit tests for the AFT codebase.
+//! Integration and unit tests for the IFT codebase.
 
 mod frame_tests {
-    use aft::aftp::frame::*;
+    use ift::aftp::frame::*;
 
     // ── Binary encoding helpers ─────────────────────────────────────────
 
@@ -422,7 +422,7 @@ mod frame_tests {
 }
 
 mod protocol_tests {
-    use aft::protocols::resolve_protocol;
+    use ift::protocols::resolve_protocol;
 
     #[test]
     fn resolve_http() {
@@ -506,7 +506,7 @@ mod protocol_tests {
 }
 
 mod engine_tests {
-    use aft::engine::TransferConfig;
+    use ift::engine::TransferConfig;
 
     #[test]
     fn default_config() {
@@ -522,11 +522,11 @@ mod engine_tests {
 }
 
 mod config_tests {
-    use aft::config::{load_config, AftConfig};
+    use ift::config::{load_config, IftConfig};
 
     #[test]
     fn default_config_all_none() {
-        let config = AftConfig::default();
+        let config = IftConfig::default();
         assert!(config.format.is_none());
         assert!(config.parallel.is_none());
         assert!(config.retries.is_none());
@@ -564,7 +564,7 @@ bind = "0.0.0.0"
 compression = true
 auth_token = "secret123"
 "#;
-        let config: AftConfig = toml::from_str(toml_content).unwrap();
+        let config: IftConfig = toml::from_str(toml_content).unwrap();
         assert_eq!(config.format.as_deref(), Some("json"));
         assert_eq!(config.parallel, Some(8));
         assert_eq!(config.retries, Some(5));
@@ -585,7 +585,7 @@ auth_token = "secret123"
         let toml_content = r#"
 retries = 10
 "#;
-        let config: AftConfig = toml::from_str(toml_content).unwrap();
+        let config: IftConfig = toml::from_str(toml_content).unwrap();
         assert_eq!(config.retries, Some(10));
         assert!(config.format.is_none());
         assert!(config.parallel.is_none());
@@ -594,14 +594,14 @@ retries = 10
 
     #[test]
     fn config_toml_empty() {
-        let config: AftConfig = toml::from_str("").unwrap();
+        let config: IftConfig = toml::from_str("").unwrap();
         assert!(config.format.is_none());
         assert!(config.parallel.is_none());
     }
 }
 
 mod history_tests {
-    use aft::history::HistoryEntry;
+    use ift::history::HistoryEntry;
 
     #[test]
     fn history_entry_serialization() {
@@ -652,7 +652,7 @@ mod history_tests {
 }
 
 mod output_tests {
-    use aft::output::OutputResult;
+    use ift::output::OutputResult;
 
     #[test]
     fn output_result_success() {
@@ -764,7 +764,7 @@ mod checksum_tests {
 }
 
 mod aftp_client_tests {
-    use aft::aftp::client::parse_aftp_url;
+    use ift::aftp::client::parse_aftp_url;
 
     #[test]
     fn parse_aftp_basic() {
@@ -814,7 +814,7 @@ mod aftp_client_tests {
 // ── Auth frame round-trip tests ─────────────────────────────────────────────
 
 mod auth_frame_tests {
-    use aft::aftp::frame::*;
+    use ift::aftp::frame::*;
 
     #[test]
     fn auth_challenge_round_trip() {
@@ -850,7 +850,7 @@ mod auth_frame_tests {
 // ── Mux frame round-trip tests ──────────────────────────────────────────────
 
 mod mux_frame_tests {
-    use aft::aftp::frame::*;
+    use ift::aftp::frame::*;
 
     #[test]
     fn stream_open_round_trip() {
@@ -900,7 +900,7 @@ mod mux_frame_tests {
 // ── Transport type parsing tests ────────────────────────────────────────────
 
 mod transport_tests {
-    use aft::aftp::transport::TransportType;
+    use ift::aftp::transport::TransportType;
 
     #[test]
     fn parse_tcp() {
@@ -961,7 +961,7 @@ mod transport_tests {
 // ── Plugin registry tests ───────────────────────────────────────────────────
 
 mod plugin_tests {
-    use aft::plugins::PluginRegistry;
+    use ift::plugins::PluginRegistry;
 
     #[test]
     fn empty_registry() {
@@ -992,7 +992,7 @@ mod plugin_tests {
 // ── New protocol resolution tests ───────────────────────────────────────────
 
 mod new_protocol_tests {
-    use aft::protocols::resolve_protocol;
+    use ift::protocols::resolve_protocol;
 
     #[test]
     fn resolve_webdav() {
@@ -1075,7 +1075,7 @@ mod new_protocol_tests {
 // ── SMB URL parsing & security tests ────────────────────────────────────────
 
 mod smb_security_tests {
-    use aft::protocols::resolve_protocol;
+    use ift::protocols::resolve_protocol;
 
     #[test]
     fn smb_rejects_shell_metacharacters() {
@@ -1110,7 +1110,7 @@ mod smb_security_tests {
 // ── Audit logging tests ─────────────────────────────────────────────────────
 
 mod audit_tests {
-    use aft::audit::*;
+    use ift::audit::*;
 
     #[test]
     fn audit_event_serialization() {
@@ -1177,7 +1177,7 @@ mod audit_tests {
 
 mod credential_scrub_tests {
     // Test the URL scrubbing logic via history entries
-    use aft::history::HistoryEntry;
+    use ift::history::HistoryEntry;
 
     #[test]
     fn history_entry_structure() {
@@ -1203,7 +1203,7 @@ mod credential_scrub_tests {
 // ── PQC crypto tests ────────────────────────────────────────────────────────
 
 mod pqc_tests {
-    use aft::crypto::pqc;
+    use ift::crypto::pqc;
     use std::path::PathBuf;
 
     #[test]
@@ -1220,7 +1220,7 @@ mod pqc_tests {
     #[test]
     fn roundtrip_key_save_load() {
         let kp = pqc::generate_keypair().unwrap();
-        let dir = std::env::temp_dir().join("aft_pqc_test");
+        let dir = std::env::temp_dir().join("ift_pqc_test");
         std::fs::create_dir_all(&dir).ok();
         let pub_path = dir.join("test_key.pub");
         let sec_path = dir.join("test_key.sec");
@@ -1243,7 +1243,7 @@ mod pqc_tests {
     #[test]
     fn encrypt_decrypt_roundtrip() {
         let kp = pqc::generate_keypair().unwrap();
-        let dir = std::env::temp_dir().join("aft_pqc_enc_test");
+        let dir = std::env::temp_dir().join("ift_pqc_enc_test");
         std::fs::create_dir_all(&dir).ok();
         let pub_path = dir.join("enc_key.pub");
         let sec_path = dir.join("enc_key.sec");
@@ -1272,7 +1272,7 @@ mod pqc_tests {
     fn wrong_key_fails_decryption() {
         let kp1 = pqc::generate_keypair().unwrap();
         let kp2 = pqc::generate_keypair().unwrap();
-        let dir = std::env::temp_dir().join("aft_pqc_wrong_key_test");
+        let dir = std::env::temp_dir().join("ift_pqc_wrong_key_test");
         std::fs::create_dir_all(&dir).ok();
 
         let pub1 = dir.join("k1.pub");
@@ -1302,7 +1302,7 @@ mod pqc_tests {
 // ── Neural cipher tests ─────────────────────────────────────────────────────
 
 mod neural_tests {
-    use aft::crypto::neural::{NeuralCipher, TrainConfig, BLOCK_SIZE};
+    use ift::crypto::neural::{NeuralCipher, TrainConfig, BLOCK_SIZE};
 
     fn quick_cipher(seed: u64) -> NeuralCipher {
         let config = TrainConfig {
@@ -1343,7 +1343,7 @@ mod neural_tests {
     fn model_save_and_load() {
         let cipher = quick_cipher(42);
 
-        let path = std::env::temp_dir().join("aft_neural_test.nn");
+        let path = std::env::temp_dir().join("ift_neural_test.nn");
         cipher.save(&path).unwrap();
 
         let loaded = NeuralCipher::load(&path).unwrap();
@@ -1377,7 +1377,7 @@ mod neural_tests {
 
     #[test]
     fn rejects_invalid_model_file() {
-        let path = std::env::temp_dir().join("aft_bad_model.nn");
+        let path = std::env::temp_dir().join("ift_bad_model.nn");
         std::fs::write(&path, b"not a valid model").unwrap();
 
         let result = NeuralCipher::load(&path);
@@ -1404,7 +1404,7 @@ mod neural_tests {
 // ── Classification tests ────────────────────────────────────────────────────
 
 mod classification_tests {
-    use aft::crypto::classification::{validate_compliance, Classification};
+    use ift::crypto::classification::{validate_compliance, Classification};
 
     #[test]
     fn parse_classification_levels() {
@@ -1488,7 +1488,7 @@ mod classification_tests {
 // ── DoD protocol handler tests ──────────────────────────────────────────────
 
 mod dod_protocol_tests {
-    use aft::protocols::resolve_protocol;
+    use ift::protocols::resolve_protocol;
 
     #[test]
     fn resolve_dod_protocol() {
@@ -1509,7 +1509,7 @@ mod dod_protocol_tests {
 // ── Encryption method tests ─────────────────────────────────────────────────
 
 mod encryption_method_tests {
-    use aft::crypto::EncryptionMethod;
+    use ift::crypto::EncryptionMethod;
 
     #[test]
     fn parse_encryption_methods() {
@@ -1550,8 +1550,8 @@ mod encryption_method_tests {
 // ── End-to-end AFTP server integration tests ────────────────────────────────
 
 mod aftp_e2e_tests {
-    use aft::aftp::client::AftpClient;
-    use aft::aftp::server::AftpServer;
+    use ift::aftp::client::AftpClient;
+    use ift::aftp::server::AftpServer;
     use tempfile::TempDir;
 
     /// Helper: start an AFTP server on a random port, return the port.
@@ -2235,7 +2235,7 @@ mod aftp_e2e_tests {
     /// engine must skip the explicit mkdir rather than attempt it.
     #[tokio::test]
     async fn sync_tree_to_aftp_server() {
-        use aft::sync::{CompareMode, SyncConfig};
+        use ift::sync::{CompareMode, SyncConfig};
 
         let dir = TempDir::new().unwrap();
         let src = dir.path().join("src");
@@ -2254,8 +2254,8 @@ mod aftp_e2e_tests {
         let handle = start_server(&dst_root, port).await;
         tokio::time::sleep(std::time::Duration::from_millis(150)).await;
 
-        let src_handler = aft::protocols::resolve_protocol("file://").unwrap();
-        let dst_handler = aft::protocols::resolve_protocol("aftp://x/").unwrap();
+        let src_handler = ift::protocols::resolve_protocol("file://").unwrap();
+        let dst_handler = ift::protocols::resolve_protocol("aftp://x/").unwrap();
         let src_url = format!("file://{}", src.to_str().unwrap().replace('\\', "/"));
         let dst_url = format!("aftp://127.0.0.1:{}/", port);
 
@@ -2265,12 +2265,12 @@ mod aftp_e2e_tests {
             ..SyncConfig::default()
         };
 
-        let result = aft::sync::sync(
+        let result = ift::sync::sync(
             &*src_handler,
             &src_url,
             &*dst_handler,
             &dst_url,
-            &aft::protocols::ProtocolOptions::default(),
+            &ift::protocols::ProtocolOptions::default(),
             &config,
             None,
         )
@@ -2325,8 +2325,8 @@ mod aftp_e2e_tests {
 // ── Security-specific tests ─────────────────────────────────────────────────
 
 mod security_tests {
-    use aft::aftp::client::AftpClient;
-    use aft::aftp::server::AftpServer;
+    use ift::aftp::client::AftpClient;
+    use ift::aftp::server::AftpServer;
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -2484,7 +2484,7 @@ mod security_tests {
     async fn smb_control_char_rejection() {
         // Control characters in URL path should be rejected at URL parsing level
         // Test via direct SMB URL parsing
-        use aft::protocols::resolve_protocol;
+        use ift::protocols::resolve_protocol;
         let bad_urls = vec![
             "smb://server\x00/share/path",
             "smb://server/share\t/path",
@@ -2500,7 +2500,7 @@ mod security_tests {
     #[test]
     fn credential_scrubbing_expanded() {
         // Verify the expanded sensitive param list works via the history module
-        let entry = aft::history::HistoryEntry {
+        let entry = ift::history::HistoryEntry {
             timestamp: "2025-01-01T00:00:00Z".to_string(),
             operation: "get".to_string(),
             source: Some("https://api.example.com/data?access_key=AKID123&name=file".to_string()),
@@ -2521,7 +2521,7 @@ mod security_tests {
 // ── Crypto roundtrip file-level tests ───────────────────────────────────────
 
 mod crypto_file_tests {
-    use aft::crypto;
+    use ift::crypto;
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -2663,8 +2663,8 @@ mod crypto_file_tests {
 // ── Phase 12 hardening tests ────────────────────────────────────────────────
 
 mod hardening_tests {
-    use aft::config::AftConfig;
-    use aft::protocols::resolve_protocol;
+    use ift::config::IftConfig;
+    use ift::protocols::resolve_protocol;
 
     #[test]
     fn url_scheme_rejects_invalid_chars() {
@@ -2690,7 +2690,7 @@ mod hardening_tests {
 
     #[test]
     fn config_rejects_zero_parallel() {
-        let config = AftConfig {
+        let config = IftConfig {
             parallel: Some(0),
             ..Default::default()
         };
@@ -2699,7 +2699,7 @@ mod hardening_tests {
 
     #[test]
     fn config_rejects_excessive_parallel() {
-        let config = AftConfig {
+        let config = IftConfig {
             parallel: Some(999),
             ..Default::default()
         };
@@ -2708,7 +2708,7 @@ mod hardening_tests {
 
     #[test]
     fn config_rejects_excessive_retries() {
-        let config = AftConfig {
+        let config = IftConfig {
             retries: Some(200),
             ..Default::default()
         };
@@ -2717,7 +2717,7 @@ mod hardening_tests {
 
     #[test]
     fn config_accepts_valid_values() {
-        let config = AftConfig {
+        let config = IftConfig {
             parallel: Some(8),
             retries: Some(5),
             connect_timeout: Some(30),
@@ -2728,13 +2728,13 @@ mod hardening_tests {
 
     #[test]
     fn config_default_validates() {
-        let config = AftConfig::default();
+        let config = IftConfig::default();
         assert!(config.validate().is_ok());
     }
 }
 
 mod telemetry_tests {
-    use aft::telemetry::TelemetryConfig;
+    use ift::telemetry::TelemetryConfig;
 
     #[test]
     fn default_config_opt_in() {
@@ -2790,11 +2790,11 @@ mod telemetry_tests {
 // ── Phase 16: Validation & hardening tests ──────────────────────────────────
 
 mod cli_validation_tests {
-    use aft::cli::Cli;
+    use ift::cli::Cli;
     use clap::Parser;
 
     fn make_cli(args: &[&str]) -> Cli {
-        let mut full = vec!["aft"];
+        let mut full = vec!["ift"];
         full.extend_from_slice(args);
         full.push("schema"); // needs a subcommand
         Cli::parse_from(full)
@@ -2856,7 +2856,7 @@ mod cli_validation_tests {
 }
 
 mod retry_delay_tests {
-    use aft::engine::TransferConfig;
+    use ift::engine::TransferConfig;
 
     #[test]
     fn retry_delay_does_not_overflow_at_high_retries() {
@@ -2892,7 +2892,7 @@ mod retry_delay_tests {
 }
 
 mod scheme_validation_tests {
-    use aft::protocols::resolve_protocol;
+    use ift::protocols::resolve_protocol;
 
     #[test]
     fn empty_scheme_is_rejected() {
@@ -2920,7 +2920,7 @@ mod scheme_validation_tests {
 }
 
 mod neural_signature_tests {
-    use aft::crypto::neural::{NeuralCipher, TrainConfig};
+    use ift::crypto::neural::{NeuralCipher, TrainConfig};
     use std::io::Write;
 
     #[test]
@@ -2937,7 +2937,7 @@ mod neural_signature_tests {
         cipher.save(&model_path).unwrap();
 
         // No sidecar — should be accepted (backward-compatible)
-        let result = aft::crypto::neural::encrypt_file_data(b"hello world!", &model_path);
+        let result = ift::crypto::neural::encrypt_file_data(b"hello world!", &model_path);
         assert!(result.is_ok(), "Model without sidecar should be accepted");
     }
 
@@ -2961,7 +2961,7 @@ mod neural_signature_tests {
         let sig_path = model_path.with_extension("aftnn.sha256");
         std::fs::write(&sig_path, &hash).unwrap();
 
-        let result = aft::crypto::neural::encrypt_file_data(b"hello world!", &model_path);
+        let result = ift::crypto::neural::encrypt_file_data(b"hello world!", &model_path);
         assert!(result.is_ok(), "Model with valid sidecar should load");
     }
 
@@ -2993,7 +2993,7 @@ mod neural_signature_tests {
         f.write_all(b"TAMPERED").unwrap();
 
         // Attempting to encrypt with tampered model should fail
-        let result = aft::crypto::neural::encrypt_file_data(b"hello", &model_path);
+        let result = ift::crypto::neural::encrypt_file_data(b"hello", &model_path);
         assert!(result.is_err(), "Tampered model should be rejected");
     }
 }
@@ -3012,7 +3012,7 @@ mod rate_limiter_cleanup_tests {
 // ── Session resume frame tests ──────────────────────────────────────────────
 
 mod session_resume_tests {
-    use aft::aftp::frame::*;
+    use ift::aftp::frame::*;
 
     #[test]
     fn hello_ack_with_session_roundtrip() {
@@ -3098,9 +3098,9 @@ mod session_resume_tests {
 // ═══════════════════════════════════════════════════════════════════════════
 
 mod engine_download_upload_tests {
-    use aft::engine::{ChecksumConfig, TransferConfig, TransferResult};
-    use aft::error::{AftError, AftResult};
-    use aft::protocols::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
+    use ift::engine::{ChecksumConfig, TransferConfig, TransferResult};
+    use ift::error::{IftError, IftResult};
+    use ift::protocols::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
     use async_trait::async_trait;
     use std::collections::HashMap;
     use std::path::Path;
@@ -3165,7 +3165,7 @@ mod engine_download_upload_tests {
             true
         }
 
-        async fn head(&self, _url: &str, _opts: &ProtocolOptions) -> AftResult<ResourceMetadata> {
+        async fn head(&self, _url: &str, _opts: &ProtocolOptions) -> IftResult<ResourceMetadata> {
             match self.report_size {
                 Some(size) => Ok(ResourceMetadata {
                     content_length: Some(size),
@@ -3175,7 +3175,7 @@ mod engine_download_upload_tests {
                     accepts_ranges: self.ranges,
                     headers: HashMap::new(),
                 }),
-                None => Err(AftError::Other("HEAD not supported".into())),
+                None => Err(IftError::Other("HEAD not supported".into())),
             }
         }
 
@@ -3186,10 +3186,10 @@ mod engine_download_upload_tests {
             _opts: &ProtocolOptions,
             resume_from: Option<u64>,
             progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-        ) -> AftResult<u64> {
+        ) -> IftResult<u64> {
             let call = self.download_calls.fetch_add(1, Ordering::SeqCst);
             if call < self.fail_first_n {
-                return Err(AftError::TransferFailed("Simulated failure".into()));
+                return Err(IftError::TransferFailed("Simulated failure".into()));
             }
             let offset = resume_from.unwrap_or(0) as usize;
             let data = &self.content[offset..];
@@ -3206,7 +3206,7 @@ mod engine_download_upload_tests {
             start: u64,
             end: u64,
             _opts: &ProtocolOptions,
-        ) -> AftResult<Vec<u8>> {
+        ) -> IftResult<Vec<u8>> {
             let s = start as usize;
             let e = (end as usize).min(self.content.len() - 1);
             Ok(self.content[s..=e].to_vec())
@@ -3220,7 +3220,7 @@ mod engine_download_upload_tests {
             _content_type: Option<&str>,
             _method: Option<&str>,
             _progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-        ) -> AftResult<u64> {
+        ) -> IftResult<u64> {
             let data = tokio::fs::read(source).await?;
             Ok(data.len() as u64)
         }
@@ -3229,7 +3229,7 @@ mod engine_download_upload_tests {
             &self,
             _url: &str,
             _opts: &ProtocolOptions,
-        ) -> AftResult<Vec<DirectoryEntry>> {
+        ) -> IftResult<Vec<DirectoryEntry>> {
             Ok(vec![])
         }
     }
@@ -3252,7 +3252,7 @@ mod engine_download_upload_tests {
             false
         }
 
-        async fn head(&self, _url: &str, _opts: &ProtocolOptions) -> AftResult<ResourceMetadata> {
+        async fn head(&self, _url: &str, _opts: &ProtocolOptions) -> IftResult<ResourceMetadata> {
             Ok(ResourceMetadata {
                 content_length: None,
                 content_type: None,
@@ -3270,8 +3270,8 @@ mod engine_download_upload_tests {
             _opts: &ProtocolOptions,
             _resume: Option<u64>,
             _progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-        ) -> AftResult<u64> {
-            Err(AftError::TransferFailed("always fails".into()))
+        ) -> IftResult<u64> {
+            Err(IftError::TransferFailed("always fails".into()))
         }
 
         async fn download_range(
@@ -3280,8 +3280,8 @@ mod engine_download_upload_tests {
             _s: u64,
             _e: u64,
             _opts: &ProtocolOptions,
-        ) -> AftResult<Vec<u8>> {
-            Err(AftError::TransferFailed("always fails".into()))
+        ) -> IftResult<Vec<u8>> {
+            Err(IftError::TransferFailed("always fails".into()))
         }
 
         async fn upload(
@@ -3292,15 +3292,15 @@ mod engine_download_upload_tests {
             _ct: Option<&str>,
             _method: Option<&str>,
             _progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-        ) -> AftResult<u64> {
-            Err(AftError::TransferFailed("always fails".into()))
+        ) -> IftResult<u64> {
+            Err(IftError::TransferFailed("always fails".into()))
         }
 
         async fn list(
             &self,
             _url: &str,
             _opts: &ProtocolOptions,
-        ) -> AftResult<Vec<DirectoryEntry>> {
+        ) -> IftResult<Vec<DirectoryEntry>> {
             Ok(vec![])
         }
     }
@@ -3316,7 +3316,7 @@ mod engine_download_upload_tests {
         let config = TransferConfig::default();
         let opts = ProtocolOptions::default();
 
-        let result = aft::engine::download(&handler, "mock://file", &dest, &opts, &config, None)
+        let result = ift::engine::download(&handler, "mock://file", &dest, &opts, &config, None)
             .await
             .unwrap();
 
@@ -3340,7 +3340,7 @@ mod engine_download_upload_tests {
         };
         let opts = ProtocolOptions::default();
 
-        let result = aft::engine::download(&handler, "mock://file", &dest, &opts, &config, None)
+        let result = ift::engine::download(&handler, "mock://file", &dest, &opts, &config, None)
             .await
             .unwrap();
 
@@ -3362,7 +3362,7 @@ mod engine_download_upload_tests {
         let opts = ProtocolOptions::default();
 
         let result =
-            aft::engine::download(&handler, "mock://file", &dest, &opts, &config, None).await;
+            ift::engine::download(&handler, "mock://file", &dest, &opts, &config, None).await;
 
         assert!(result.is_err());
         let msg = format!("{}", result.unwrap_err());
@@ -3388,7 +3388,7 @@ mod engine_download_upload_tests {
         };
         let opts = ProtocolOptions::default();
 
-        let result = aft::engine::download(&handler, "mock://file", &dest, &opts, &config, None)
+        let result = ift::engine::download(&handler, "mock://file", &dest, &opts, &config, None)
             .await
             .unwrap();
 
@@ -3415,7 +3415,7 @@ mod engine_download_upload_tests {
         let opts = ProtocolOptions::default();
 
         let result =
-            aft::engine::download(&handler, "mock://file", &dest, &opts, &config, None).await;
+            ift::engine::download(&handler, "mock://file", &dest, &opts, &config, None).await;
         assert!(result.is_err());
         let msg = format!("{}", result.unwrap_err());
         assert!(msg.contains("mismatch") || msg.contains("Mismatch") || msg.contains("Checksum"));
@@ -3430,7 +3430,7 @@ mod engine_download_upload_tests {
         let config = TransferConfig::default();
         let opts = ProtocolOptions::default();
 
-        let result = aft::engine::download(&handler, "mock://file", &dest, &opts, &config, None)
+        let result = ift::engine::download(&handler, "mock://file", &dest, &opts, &config, None)
             .await
             .unwrap();
 
@@ -3448,12 +3448,12 @@ mod engine_download_upload_tests {
         let opts = ProtocolOptions::default();
         let called = Arc::new(AtomicU32::new(0));
         let called2 = called.clone();
-        let cb: aft::engine::ProgressCb = Arc::new(move |_bytes, _total| {
+        let cb: ift::engine::ProgressCb = Arc::new(move |_bytes, _total| {
             called2.fetch_add(1, Ordering::SeqCst);
         });
 
         let _result =
-            aft::engine::download(&handler, "mock://file", &dest, &opts, &config, Some(cb))
+            ift::engine::download(&handler, "mock://file", &dest, &opts, &config, Some(cb))
                 .await
                 .unwrap();
 
@@ -3476,7 +3476,7 @@ mod engine_download_upload_tests {
         let config = TransferConfig::default();
         let opts = ProtocolOptions::default();
 
-        let result = aft::engine::upload(
+        let result = ift::engine::upload(
             &handler,
             &src,
             "mock://dest",
@@ -3508,7 +3508,7 @@ mod engine_download_upload_tests {
         };
         let opts = ProtocolOptions::default();
 
-        let result = aft::engine::upload(
+        let result = ift::engine::upload(
             &handler,
             &src,
             "mock://dest",
@@ -3575,8 +3575,8 @@ mod engine_download_upload_tests {
 // ═══════════════════════════════════════════════════════════════════════════
 
 mod aftp_server_extended_tests {
-    use aft::aftp::client::AftpClient;
-    use aft::aftp::server::AftpServer;
+    use ift::aftp::client::AftpClient;
+    use ift::aftp::server::AftpServer;
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -3916,9 +3916,9 @@ mod aftp_server_extended_tests {
 // ═══════════════════════════════════════════════════════════════════════════
 
 mod crypto_extended_tests {
-    use aft::crypto;
-    use aft::crypto::neural::{NeuralCipher, TrainConfig};
-    use aft::crypto::pqc;
+    use ift::crypto;
+    use ift::crypto::neural::{NeuralCipher, TrainConfig};
+    use ift::crypto::pqc;
 
     #[test]
     fn pqc_keypair_generation_is_unique() {
@@ -4105,7 +4105,7 @@ mod crypto_extended_tests {
     }
 
     #[tokio::test]
-    async fn decrypt_non_aft_file_fails() {
+    async fn decrypt_non_ift_file_fails() {
         let dir = tempfile::TempDir::new().unwrap();
         let bad_file = dir.path().join("not_encrypted.bin");
         let output = dir.path().join("dec.bin");
@@ -4138,29 +4138,29 @@ mod crypto_extended_tests {
 mod cli_e2e_tests {
     use std::process::Command;
 
-    fn aft_bin() -> Command {
-        Command::new(env!("CARGO_BIN_EXE_aft"))
+    fn ift_bin() -> Command {
+        Command::new(env!("CARGO_BIN_EXE_ift"))
     }
 
     #[test]
     fn cli_help_exits_zero() {
-        let output = aft_bin().arg("--help").output().unwrap();
+        let output = ift_bin().arg("--help").output().unwrap();
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("Agentic File Transfer"));
+        assert!(stdout.contains("Iron File Transfer"));
     }
 
     #[test]
     fn cli_version_exits_zero() {
-        let output = aft_bin().arg("--version").output().unwrap();
+        let output = ift_bin().arg("--version").output().unwrap();
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("aft"));
+        assert!(stdout.contains("ift"));
     }
 
     #[test]
     fn cli_schema_subcommand() {
-        let output = aft_bin().arg("schema").output().unwrap();
+        let output = ift_bin().arg("schema").output().unwrap();
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         // Schema should produce JSON describing the CLI
@@ -4169,7 +4169,7 @@ mod cli_e2e_tests {
 
     #[test]
     fn cli_capabilities_subcommand() {
-        let output = aft_bin().arg("capabilities").output().unwrap();
+        let output = ift_bin().arg("capabilities").output().unwrap();
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("http") || stdout.contains("protocol") || stdout.contains("aftp"));
@@ -4177,7 +4177,7 @@ mod cli_e2e_tests {
 
     #[test]
     fn cli_agent_mode_json_output() {
-        let output = aft_bin().args(["--agent", "schema"]).output().unwrap();
+        let output = ift_bin().args(["--agent", "schema"]).output().unwrap();
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         // Agent mode should produce structured output
@@ -4186,7 +4186,7 @@ mod cli_e2e_tests {
 
     #[test]
     fn cli_json_format_schema() {
-        let output = aft_bin()
+        let output = ift_bin()
             .args(["--format", "json", "schema"])
             .output()
             .unwrap();
@@ -4195,25 +4195,25 @@ mod cli_e2e_tests {
 
     #[test]
     fn cli_no_subcommand_fails() {
-        let output = aft_bin().output().unwrap();
+        let output = ift_bin().output().unwrap();
         assert!(!output.status.success());
     }
 
     #[test]
     fn cli_invalid_subcommand_fails() {
-        let output = aft_bin().arg("nonexistent_command").output().unwrap();
+        let output = ift_bin().arg("nonexistent_command").output().unwrap();
         assert!(!output.status.success());
     }
 
     #[test]
     fn cli_get_missing_url_fails() {
-        let output = aft_bin().arg("get").output().unwrap();
+        let output = ift_bin().arg("get").output().unwrap();
         assert!(!output.status.success());
     }
 
     #[test]
     fn cli_checksum_subcommand_missing_file_fails() {
-        let output = aft_bin()
+        let output = ift_bin()
             .args(["checksum", "/nonexistent/file.txt"])
             .output()
             .unwrap();
@@ -4226,7 +4226,7 @@ mod cli_e2e_tests {
 // ═══════════════════════════════════════════════════════════════════════════
 
 mod mux_extended_tests {
-    use aft::aftp::frame::*;
+    use ift::aftp::frame::*;
 
     #[test]
     fn stream_open_roundtrip() {
@@ -4283,7 +4283,7 @@ mod mux_extended_tests {
 }
 
 mod classification_extended_tests {
-    use aft::crypto::classification::{validate_compliance, Classification};
+    use ift::crypto::classification::{validate_compliance, Classification};
 
     #[test]
     fn classification_ordering() {
@@ -4355,7 +4355,7 @@ mod classification_extended_tests {
 }
 
 mod telemetry_extended_tests {
-    use aft::telemetry::{
+    use ift::telemetry::{
         TelemetryConfig, TelemetryEvent, TelemetryRecord, DEFAULT_TELEMETRY_ENDPOINT,
     };
     use std::collections::HashMap;
@@ -4497,36 +4497,36 @@ mod telemetry_extended_tests {
 }
 
 mod error_type_tests {
-    use aft::error::AftError;
+    use ift::error::IftError;
 
     #[test]
     fn error_display_messages() {
-        let cases: Vec<(AftError, &str)> = vec![
-            (AftError::UnsupportedProtocol("gopher".into()), "gopher"),
-            (AftError::InvalidUrl("bad".into()), "bad"),
-            (AftError::ConnectionFailed("refused".into()), "refused"),
-            (AftError::TransferFailed("timeout".into()), "timeout"),
-            (AftError::FileNotFound("missing.txt".into()), "missing.txt"),
-            (AftError::PermissionDenied("read".into()), "read"),
+        let cases: Vec<(IftError, &str)> = vec![
+            (IftError::UnsupportedProtocol("gopher".into()), "gopher"),
+            (IftError::InvalidUrl("bad".into()), "bad"),
+            (IftError::ConnectionFailed("refused".into()), "refused"),
+            (IftError::TransferFailed("timeout".into()), "timeout"),
+            (IftError::FileNotFound("missing.txt".into()), "missing.txt"),
+            (IftError::PermissionDenied("read".into()), "read"),
             (
-                AftError::ChecksumMismatch {
+                IftError::ChecksumMismatch {
                     expected: "aaa".into(),
                     actual: "bbb".into(),
                 },
                 "aaa",
             ),
-            (AftError::Timeout(30), "30"),
-            (AftError::ResumeNotSupported, "Resume"),
+            (IftError::Timeout(30), "30"),
+            (IftError::ResumeNotSupported, "Resume"),
             (
-                AftError::HttpStatus {
+                IftError::HttpStatus {
                     status: 404,
                     message: "Not Found".into(),
                 },
                 "404",
             ),
-            (AftError::AuthFailed("bad token".into()), "bad token"),
-            (AftError::CryptoError("decrypt".into()), "decrypt"),
-            (AftError::Other("misc".into()), "misc"),
+            (IftError::AuthFailed("bad token".into()), "bad token"),
+            (IftError::CryptoError("decrypt".into()), "decrypt"),
+            (IftError::Other("misc".into()), "misc"),
         ];
 
         for (err, expected_substring) in cases {
@@ -4543,14 +4543,14 @@ mod error_type_tests {
     #[test]
     fn io_error_conversion() {
         let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "gone");
-        let aft_err: AftError = io_err.into();
-        let msg = format!("{}", aft_err);
+        let ift_err: IftError = io_err.into();
+        let msg = format!("{}", ift_err);
         assert!(msg.contains("gone"));
     }
 }
 
 mod protocol_handler_tests {
-    use aft::protocols::resolve_protocol;
+    use ift::protocols::resolve_protocol;
 
     #[test]
     fn resolve_all_builtin_schemes() {
@@ -4630,7 +4630,7 @@ mod protocol_handler_tests {
 }
 
 mod plugin_extended_tests {
-    use aft::plugins::PluginRegistry;
+    use ift::plugins::PluginRegistry;
 
     #[test]
     fn default_registry_is_empty() {
@@ -4659,7 +4659,7 @@ mod plugin_extended_tests {
 }
 
 mod ontology_tests {
-    use aft::ontology;
+    use ift::ontology;
 
     #[test]
     fn generate_schema_has_operations() {
@@ -4694,8 +4694,8 @@ mod output_extended_tests {
 // ── Extended local protocol operations ─────────────────────────────────
 
 mod local_extended_ops_tests {
-    use aft::protocols::local::LocalHandler;
-    use aft::protocols::{ProtocolHandler, ProtocolOptions};
+    use ift::protocols::local::LocalHandler;
+    use ift::protocols::{ProtocolHandler, ProtocolOptions};
     use std::fs;
 
     fn opts() -> ProtocolOptions {
@@ -4837,9 +4837,9 @@ mod local_extended_ops_tests {
 // ── Sync engine integration tests ──────────────────────────────────────
 
 mod sync_engine_tests {
-    use aft::protocols::local::LocalHandler;
-    use aft::protocols::ProtocolOptions;
-    use aft::sync::{CompareMode, SyncActionKind, SyncConfig};
+    use ift::protocols::local::LocalHandler;
+    use ift::protocols::ProtocolOptions;
+    use ift::sync::{CompareMode, SyncActionKind, SyncConfig};
     use std::fs;
 
     fn opts() -> ProtocolOptions {
@@ -4865,7 +4865,7 @@ mod sync_engine_tests {
             ..SyncConfig::default()
         };
 
-        let result = aft::sync::sync(
+        let result = ift::sync::sync(
             &handler,
             &file_url(&src),
             &handler,
@@ -4900,7 +4900,7 @@ mod sync_engine_tests {
             ..SyncConfig::default()
         };
 
-        let result = aft::sync::sync(
+        let result = ift::sync::sync(
             &handler,
             &file_url(&src),
             &handler,
@@ -4933,7 +4933,7 @@ mod sync_engine_tests {
             ..SyncConfig::default()
         };
 
-        let result = aft::sync::sync(
+        let result = ift::sync::sync(
             &handler,
             &file_url(&src),
             &handler,
@@ -4969,7 +4969,7 @@ mod sync_engine_tests {
             ..SyncConfig::default()
         };
 
-        let result = aft::sync::sync(
+        let result = ift::sync::sync(
             &handler,
             &file_url(&src),
             &handler,
@@ -5003,7 +5003,7 @@ mod sync_engine_tests {
             ..SyncConfig::default()
         };
 
-        let result = aft::sync::sync(
+        let result = ift::sync::sync(
             &handler,
             &file_url(&src),
             &handler,
@@ -5037,7 +5037,7 @@ mod sync_engine_tests {
             ..SyncConfig::default()
         };
 
-        let result = aft::sync::sync(
+        let result = ift::sync::sync(
             &handler,
             &file_url(&src),
             &handler,
@@ -5071,7 +5071,7 @@ mod sync_engine_tests {
             ..SyncConfig::default()
         };
 
-        let result = aft::sync::sync(
+        let result = ift::sync::sync(
             &handler,
             &file_url(&src),
             &handler,
@@ -5104,7 +5104,7 @@ mod sync_engine_tests {
             ..SyncConfig::default()
         };
 
-        let result = aft::sync::sync(
+        let result = ift::sync::sync(
             &handler,
             &file_url(&src),
             &handler,
@@ -5142,7 +5142,7 @@ mod sync_engine_tests {
             ..SyncConfig::default()
         };
 
-        let result = aft::sync::sync(
+        let result = ift::sync::sync(
             &handler,
             &file_url(&src),
             &handler,
@@ -5204,7 +5204,7 @@ mod sync_engine_tests {
             ..SyncConfig::default()
         };
 
-        let result = aft::sync::sync(
+        let result = ift::sync::sync(
             &handler,
             &file_url(&src),
             &handler,
@@ -5226,7 +5226,7 @@ mod sync_engine_tests {
     async fn sync_concurrency_does_not_change_results() {
         const N: usize = 60;
 
-        async fn run(transfers: usize) -> aft::sync::SyncResult {
+        async fn run(transfers: usize) -> ift::sync::SyncResult {
             let dir = tempfile::tempdir().unwrap();
             let src = dir.path().join("src");
             let dst = dir.path().join("dst");
@@ -5244,7 +5244,7 @@ mod sync_engine_tests {
                 transfers,
                 ..SyncConfig::default()
             };
-            let r = aft::sync::sync(
+            let r = ift::sync::sync(
                 &handler,
                 &file_url(&src),
                 &handler,
@@ -5304,7 +5304,7 @@ mod sync_engine_tests {
             ..SyncConfig::default()
         };
 
-        aft::sync::sync(
+        ift::sync::sync(
             &handler,
             &file_url(&src),
             &handler,
@@ -5340,7 +5340,7 @@ mod sync_engine_tests {
             ..SyncConfig::default()
         };
 
-        aft::sync::sync(
+        ift::sync::sync(
             &handler,
             &file_url(&src),
             &handler,
@@ -5378,13 +5378,13 @@ mod sync_engine_tests {
 mod cli_new_subcommands_tests {
     use std::process::Command;
 
-    fn aft_bin() -> Command {
-        Command::new(env!("CARGO_BIN_EXE_aft"))
+    fn ift_bin() -> Command {
+        Command::new(env!("CARGO_BIN_EXE_ift"))
     }
 
     #[test]
     fn cli_sync_help() {
-        let output = aft_bin().args(["sync", "--help"]).output().unwrap();
+        let output = ift_bin().args(["sync", "--help"]).output().unwrap();
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("source") || stdout.contains("SOURCE"));
@@ -5392,7 +5392,7 @@ mod cli_new_subcommands_tests {
 
     #[test]
     fn cli_mv_help() {
-        let output = aft_bin().args(["mv", "--help"]).output().unwrap();
+        let output = ift_bin().args(["mv", "--help"]).output().unwrap();
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("source") || stdout.contains("SOURCE"));
@@ -5400,7 +5400,7 @@ mod cli_new_subcommands_tests {
 
     #[test]
     fn cli_rm_help() {
-        let output = aft_bin().args(["rm", "--help"]).output().unwrap();
+        let output = ift_bin().args(["rm", "--help"]).output().unwrap();
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("url") || stdout.contains("URL"));
@@ -5408,7 +5408,7 @@ mod cli_new_subcommands_tests {
 
     #[test]
     fn cli_mkdir_help() {
-        let output = aft_bin().args(["mkdir", "--help"]).output().unwrap();
+        let output = ift_bin().args(["mkdir", "--help"]).output().unwrap();
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("url") || stdout.contains("URL"));
@@ -5426,7 +5426,7 @@ mod cli_new_subcommands_tests {
         let src_url = format!("file://{}", src.to_str().unwrap().replace('\\', "/"));
         let dst_url = format!("file://{}", dst.to_str().unwrap().replace('\\', "/"));
 
-        let output = aft_bin()
+        let output = ift_bin()
             .args(["sync", &src_url, &dst_url, "--dry-run", "--format", "json"])
             .output()
             .unwrap();

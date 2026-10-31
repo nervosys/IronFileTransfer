@@ -1,6 +1,6 @@
-# AFT Benchmarks
+# IFT Benchmarks
 
-Criterion-based benchmarks for AFT's hardware-accelerated primitives, AFTP wire
+Criterion-based benchmarks for IFT's hardware-accelerated primitives, AFTP wire
 protocol, and transfer I/O paths. All numbers were collected on a single machine
 with an AMD/Intel x86_64 CPU supporting SSE4.2, SHA-NI, and AES-NI instruction
 sets. Results will vary by hardware; run `cargo bench` to reproduce on your own
@@ -59,7 +59,7 @@ Benchmark source files:
 
 ## Primitives
 
-Hardware-accelerated cryptographic and integrity primitives used in AFT's data
+Hardware-accelerated cryptographic and integrity primitives used in IFT's data
 path. Each primitive auto-detects and uses the best available CPU instructions.
 
 ### CRC32 (SSE4.2)
@@ -143,7 +143,7 @@ byte-at-a-time, yielding a 4–6× speedup on the XOR pass.
 
 ## AFTP Protocol
 
-AFTP is AFT's custom binary wire protocol. It uses a 10-byte header per frame
+AFTP is IFT's custom binary wire protocol. It uses a 10-byte header per frame
 with 1 MB data frames, yielding 0.001% framing overhead compared to HTTP's
 0.02–0.08%.
 
@@ -204,14 +204,14 @@ maximum achievable throughput on the test system's storage subsystem.
 | Method                    | Throughput | Notes                               |
 | ------------------------- | ---------- | ----------------------------------- |
 | `std::fs::copy` (Rust)    | 2.14 GiB/s | OS-level `CopyFileW` on Windows     |
-| Buffered copy (4 MB bufs) | 1.44 GiB/s | AFT's `IO_BUF_SIZE` buffer strategy |
+| Buffered copy (4 MB bufs) | 1.44 GiB/s | IFT's `IO_BUF_SIZE` buffer strategy |
 | `robocopy` (Windows)      | 1.05 GiB/s | Standard Windows copy tool          |
 | `.NET File.Copy`          | 408 MiB/s  | PowerShell / .NET baseline          |
 | `tokio::io::copy` (async) | 217 MiB/s  | Async runtime overhead              |
 
 ### Integrity Pipeline
 
-Simulates AFT's real data path: per-frame CRC32 on every 1 MB chunk plus
+Simulates IFT's real data path: per-frame CRC32 on every 1 MB chunk plus
 transfer-level SHA-256 across the entire file. This is the cost of full
 integrity verification.
 
@@ -225,28 +225,28 @@ integrity verification.
 
 ## Comparison with Other Tools
 
-### AFT vs. System Copy Tools (100 MB, Local Disk)
+### IFT vs. System Copy Tools (100 MB, Local Disk)
 
 | Tool                       | Throughput     | Integrity       | Encryption | Compression |
 | -------------------------- | -------------- | --------------- | ---------- | ----------- |
-| **AFT integrity pipeline** | **1.96 GiB/s** | CRC32 + SHA-256 | —          | —           |
+| **IFT integrity pipeline** | **1.96 GiB/s** | CRC32 + SHA-256 | —          | —           |
 | `std::fs::copy`            | 2.14 GiB/s     | None            | None       | None        |
 | `robocopy`                 | 1.05 GiB/s     | None            | None       | None        |
 | `.NET File.Copy`           | 408 MiB/s      | None            | None       | None        |
 
-AFT's integrity pipeline (CRC32 + SHA-256 on every byte) runs at 1.96 GiB/s —
+IFT's integrity pipeline (CRC32 + SHA-256 on every byte) runs at 1.96 GiB/s —
 **1.87× faster than robocopy** and **4.8× faster than .NET File.Copy** — while
 providing cryptographic verification that neither tool offers.
 
-### AFT Primitive Throughput vs. Published Benchmarks
+### IFT Primitive Throughput vs. Published Benchmarks
 
-| Primitive   | AFT             | Typical Software   | Speedup |
+| Primitive   | IFT             | Typical Software   | Speedup |
 | ----------- | --------------- | ------------------ | ------- |
 | CRC32       | 15.0 GiB/s      | ~0.3 GiB/s (no HW) | ~50×    |
 | SHA-256     | 2.35 GiB/s      | ~0.4 GiB/s (no HW) | ~6×     |
 | AES-256-GCM | 1.05–1.50 GiB/s | ~0.1 GiB/s (no HW) | ~10–15× |
 
-Hardware acceleration is the key differentiator. AFT auto-detects and uses
+Hardware acceleration is the key differentiator. IFT auto-detects and uses
 SSE4.2, SHA-NI, and AES-NI instructions, eliminating integrity and encryption as
 bottlenecks.
 
@@ -258,7 +258,7 @@ head-to-head measurements — see the next section for those.
 
 | Tool Class         | Integrity       | Encryption              | Protocol Overhead    |
 | ------------------ | --------------- | ----------------------- | -------------------- |
-| **AFT (AFTP)**     | CRC32 + SHA-256 | AES-256-GCM + Kyber1024 | 0.001% (10 B / 1 MB) |
+| **IFT (AFTP)**     | CRC32 + SHA-256 | AES-256-GCM + Kyber1024 | 0.001% (10 B / 1 MB) |
 | curl / wget (HTTP) | Optional        | TLS                     | 0.02–0.08%           |
 | rsync              | MD5 / xxHash    | SSH tunnel              | Variable             |
 | scp / sftp         | HMAC            | SSH                     | SSH framing          |
@@ -267,15 +267,15 @@ head-to-head measurements — see the next section for those.
 ### Measured Head-to-Head: Lossy and Latent Links
 
 Measured on WSL2 Debian using network namespaces joined by a veth pair, shaped
-in **both directions** with `tc` HTB + netem. Contenders: AFT (this repo,
+in **both directions** with `tc` HTB + netem. Contenders: IFT (this repo,
 release build), [ATP](https://github.com/Dicklesworthstone/atp) built from
 source (asupersync, TCP mode and RaptorQ mode with
 `--rq-allow-unauthenticated-lab`), and rsync over ssh. Workload: one 50 MB
 file, cold destination, byte-verified after transfer. Median of 3 runs; peak
 RSS via `/usr/bin/time -v`. Raw rows: [`bench/results_good_9run.jsonl`](../bench/results_good_9run.jsonl)
 (the 9-run `good` row, all tools), [`bench/results_fec_final.jsonl`](../bench/results_fec_final.jsonl)
-(aft --fec bad/broken), [`bench/results_tcp_bbr.jsonl`](../bench/results_tcp_bbr.jsonl)
-(aft TCP bad/broken), and [`bench/results_fec.jsonl`](../bench/results_fec.jsonl)
+(ift --fec bad/broken), [`bench/results_tcp_bbr.jsonl`](../bench/results_tcp_bbr.jsonl)
+(ift TCP bad/broken), and [`bench/results_fec.jsonl`](../bench/results_fec.jsonl)
 (atp, rsync bad/broken), produced by the harness in [`bench/harness/`](../bench/harness/).
 
 Network regimes (mirroring ATP's own benchmark matrix):
@@ -291,8 +291,8 @@ within the cell's time limit):
 
 | Tool             | good      | bad         | broken       | RSS (good) |
 | ---------------- | --------- | ----------- | ------------ | ---------- |
-| **aft (TCP)**    | **2.8**   | 14.8        | timeout      | ~47 MB     |
-| **aft --fec**    | 3.4       | **13.0**    | **103**      | ~149 MB    |
+| **ift (TCP)**    | **2.8**   | 14.8        | timeout      | ~47 MB     |
+| **ift --fec**    | 3.4       | **13.0**    | **103**      | ~149 MB    |
 | atp (TCP mode)   | 3.0       | timeout     | timeout      | ~10 MB     |
 | atp (RaptorQ)    | 3.0       | timeout     | timeout      | ~13 MB     |
 | rsync (ssh)      | 3.3       | timeout     | timeout      | ~8 MB      |
@@ -301,17 +301,17 @@ The `good` column is a median of 9 runs (that regime has high run-to-run
 variance on netem — see below); `bad`/`broken` are medians of 3–6 runs. The
 TCP path uses BBR congestion control by default (`AFT_TCP_CC` to override).
 
-**`good` regime — AFT's TCP path is the fastest tool measured, at 2.8 s.** It
+**`good` regime — IFT's TCP path is the fastest tool measured, at 2.8 s.** It
 edges out atp (both modes, 3.0 s) and rsync (3.3 s), and it does so *tightly*:
-all nine AFT runs fell in 2.74–2.92 s. BBR's pacing keeps the distribution
+all nine IFT runs fell in 2.74–2.92 s. BBR's pacing keeps the distribution
 narrow — its slowest run still beat every other tool's median. The other tools
 are bimodal here: the 0.1% random loss occasionally triggers a CUBIC window cut,
 so their tails blow out — across the same nine runs atp-tcp reached 14.6 s,
-atp-rq 35.9 s, and rsync 25.5 s, dragging their medians above AFT's. This is also why an
-earlier 3-run sample wrongly showed AFT behind — on a high-variance link, three
+atp-rq 35.9 s, and rsync 25.5 s, dragging their medians above IFT's. This is also why an
+earlier 3-run sample wrongly showed IFT behind — on a high-variance link, three
 runs is too few to trust; nine tells the real story.
 
-Two AFT paths, two different jobs:
+Two IFT paths, two different jobs:
 
 **`bad` regime (2% loss) — the TCP path handles it, thanks to BBR.** The same
 default BBR that wins the `good` cell also carries the lossy one. CUBIC (the
@@ -319,7 +319,7 @@ kernel default every other tool here uses) is loss-based: it reads the 2%
 random drop as congestion and cuts its window every time, so its throughput
 collapses to ≈ MSS/(RTT·√p) ≈ 130 KB/s — ~385 s for 50 MB, past every timeout
 here, which is why `atp (TCP mode)` and `rsync` time out. BBR models bottleneck
-bandwidth and RTprop and ignores loss as a signal, so AFT's TCP transfer
+bandwidth and RTprop and ignores loss as a signal, so IFT's TCP transfer
 finishes in **14.8 s median** at ~47 MB RSS — matching the FEC path (13.0 s)
 with a third of the memory. On a 2%-loss link you do not need FEC; you need TCP
 to stop misreading loss.
@@ -328,8 +328,8 @@ to stop misreading loss.
 is not enough: congestion control was never the bottleneck, TCP's *reliability*
 layer is. Every dropped byte still costs a retransmit round trip, 5% reordering
 triggers spurious fast-retransmits, and at 10% loss over ~36k segments the
-stream never drains — `aft (TCP)` times out 3/3 at 200 s alongside every other
-reliable-transport tool. `aft --fec` completes 3/3 (89.7 / 103.2 / 233.9 s,
+stream never drains — `ift (TCP)` times out 3/3 at 200 s alongside every other
+reliable-transport tool. `ift --fec` completes 3/3 (89.7 / 103.2 / 233.9 s,
 median 103.2 s) because a fountain code turns loss into a bit of extra repair
 bandwidth rather than a round trip. This is the regime the data plane was built
 for.
@@ -340,10 +340,10 @@ for.
    consistently across two independent runs (errors/hash mismatches on lossy
    regimes), but could stem from the specific asupersync build, the
    `--rq-allow-unauthenticated-lab` flag, or interaction with netem — not
-   necessarily from ATP's design. These results support "AFT's FEC path
-   survives links where our ATP build did not," not "AFT's algorithm beats
+   necessarily from ATP's design. These results support "IFT's FEC path
+   survives links where our ATP build did not," not "IFT's algorithm beats
    ATP's."
-2. **Memory is AFT's cost.** `aft --fec` peak RSS ranged 136–168 MB across all
+2. **Memory is IFT's cost.** `ift --fec` peak RSS ranged 136–168 MB across all
    measured runs (window × 8 MiB blocks + RaptorQ working set) versus ~8–13 MB
    for rsync and ATP. The RSS is bounded and independent of file size, but it is
    roughly 12–15× the other tools'.
@@ -351,10 +351,10 @@ for.
    leaves little headroom; runs ranged 89.7–233.9 s and pure wire time for
    50 MB at 10 Mbit is ~42 s, so real room to improve remains — it just beats
    a field where nothing else finishes.
-4. **The TCP-path numbers assume BBR is available.** AFT requests BBR
+4. **The TCP-path numbers assume BBR is available.** IFT requests BBR
    per-socket by default (override with `AFT_TCP_CC`), but the kernel only
    honours it if the `tcp_bbr` module is loaded (`modprobe tcp_bbr`; check
-   `sysctl net.ipv4.tcp_available_congestion_control`). Where it is not, AFT
+   `sysctl net.ipv4.tcp_available_congestion_control`). Where it is not, IFT
    silently keeps the kernel default (CUBIC): the `good` cell is essentially
    unchanged but its tail widens, and the `bad` cell collapses to a timeout
    like the other tools — use `--fec` there. BBR is a per-socket opt-in on
@@ -364,7 +364,7 @@ for.
 
 ## Analysis
 
-### Why AFT's Integrity Is Free
+### Why IFT's Integrity Is Free
 
 CRC32 at 15 GiB/s means verifying a 1 MB data frame takes 65 µs. SHA-256 at
 2.35 GiB/s adds 415 µs per MB. Combined, the integrity pipeline processes
@@ -374,7 +374,7 @@ tradeoff; it is effectively free.
 
 ### Why Encryption Isn't a Bottleneck
 
-AES-256-GCM at ~1 GiB/s with AES-NI means AFT can encrypt every byte of a
+AES-256-GCM at ~1 GiB/s with AES-NI means IFT can encrypt every byte of a
 transfer and still exceed the throughput of most copy tools operating on
 plaintext. A 10 Gbps network link saturates at 1.16 GiB/s — almost exactly
 what AES-256-GCM delivers.
@@ -388,7 +388,7 @@ bottleneck — disk I/O and network bandwidth are.
 
 ### Turbo Engine Design
 
-AFT's turbo engine probes the link (HEAD request timing) and dispatches to the
+IFT's turbo engine probes the link (HEAD request timing) and dispatches to the
 standard transfer engine with tuned parameters: parallel range requests when
 the protocol benefits from them, and chunk sizes selected by link locality.
 AFTP TCP sockets get 16 MiB send/receive buffers (`tune_tcp_socket`), and the

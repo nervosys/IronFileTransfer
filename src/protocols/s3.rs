@@ -9,16 +9,16 @@ use s3::Region;
 use tokio::io::AsyncWriteExt;
 
 use super::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 pub struct S3Handler;
 
 /// Parse s3://bucket/key into (bucket, key).
 /// Supports optional endpoint override via the S3_ENDPOINT env var.
-fn parse_s3_url(url: &str) -> AftResult<(String, String)> {
+fn parse_s3_url(url: &str) -> IftResult<(String, String)> {
     let rest = url
         .strip_prefix("s3://")
-        .ok_or_else(|| AftError::InvalidUrl("Not an s3:// URL".into()))?;
+        .ok_or_else(|| IftError::InvalidUrl("Not an s3:// URL".into()))?;
 
     let (bucket, key) = match rest.find('/') {
         Some(i) => (rest[..i].to_string(), rest[i + 1..].to_string()),
@@ -26,7 +26,7 @@ fn parse_s3_url(url: &str) -> AftResult<(String, String)> {
     };
 
     if bucket.is_empty() {
-        return Err(AftError::InvalidUrl("S3 URL missing bucket name".into()));
+        return Err(IftError::InvalidUrl("S3 URL missing bucket name".into()));
     }
 
     Ok((bucket, key))
@@ -45,32 +45,32 @@ fn make_region() -> Region {
     }
 }
 
-fn make_credentials(opts: &ProtocolOptions) -> AftResult<Credentials> {
+fn make_credentials(opts: &ProtocolOptions) -> IftResult<Credentials> {
     // Try bearer_token as a session token override, otherwise use env/profile
     if let Some(ref token) = opts.bearer_token {
         // Use explicit credentials if bearer_token looks like "ACCESS_KEY:SECRET_KEY"
         if let Some((ak, sk)) = token.split_once(':') {
             return Credentials::new(Some(ak), Some(sk), None, None, None)
-                .map_err(|e| AftError::Other(format!("S3 credentials: {}", e)));
+                .map_err(|e| IftError::Other(format!("S3 credentials: {}", e)));
         }
     }
 
     if let Some((ref user, ref pass)) = opts.basic_auth {
         return Credentials::new(Some(user), Some(pass), None, None, None)
-            .map_err(|e| AftError::Other(format!("S3 credentials: {}", e)));
+            .map_err(|e| IftError::Other(format!("S3 credentials: {}", e)));
     }
 
     // Fall back to default credential chain (env vars, AWS profile, instance metadata)
-    Credentials::default().map_err(|e| AftError::Other(format!("S3 credentials: {}", e)))
+    Credentials::default().map_err(|e| IftError::Other(format!("S3 credentials: {}", e)))
 }
 
-async fn make_bucket(url: &str, opts: &ProtocolOptions) -> AftResult<(s3::Bucket, String)> {
+async fn make_bucket(url: &str, opts: &ProtocolOptions) -> IftResult<(s3::Bucket, String)> {
     let (bucket_name, key) = parse_s3_url(url)?;
     let region = make_region();
     let creds = make_credentials(opts)?;
 
     let bucket = s3::Bucket::new(&bucket_name, region, creds)
-        .map_err(|e| AftError::Other(format!("S3 bucket: {}", e)))?;
+        .map_err(|e| IftError::Other(format!("S3 bucket: {}", e)))?;
 
     Ok((*bucket, key))
 }
@@ -93,16 +93,16 @@ impl ProtocolHandler for S3Handler {
         true
     }
 
-    async fn head(&self, url: &str, opts: &ProtocolOptions) -> AftResult<ResourceMetadata> {
+    async fn head(&self, url: &str, opts: &ProtocolOptions) -> IftResult<ResourceMetadata> {
         let (bucket, key) = make_bucket(url, opts).await?;
 
         let (head, code) = bucket
             .head_object(&key)
             .await
-            .map_err(|e| AftError::Other(format!("S3 HEAD: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("S3 HEAD: {}", e)))?;
 
         if code != 200 {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: code,
                 message: "S3 HEAD failed".to_string(),
             });
@@ -125,16 +125,16 @@ impl ProtocolHandler for S3Handler {
         opts: &ProtocolOptions,
         _resume_from: Option<u64>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (bucket, key) = make_bucket(url, opts).await?;
 
         let response = bucket
             .get_object(&key)
             .await
-            .map_err(|e| AftError::TransferFailed(format!("S3 GET: {}", e)))?;
+            .map_err(|e| IftError::TransferFailed(format!("S3 GET: {}", e)))?;
 
         if response.status_code() != 200 {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: response.status_code(),
                 message: "S3 GET failed".to_string(),
             });
@@ -160,14 +160,14 @@ impl ProtocolHandler for S3Handler {
         start: u64,
         end: u64,
         opts: &ProtocolOptions,
-    ) -> AftResult<Vec<u8>> {
+    ) -> IftResult<Vec<u8>> {
         let (bucket, key) = make_bucket(url, opts).await?;
 
         let range = format!("bytes={}-{}", start, end);
         let response = bucket
             .get_object_range(&key, start, Some(end))
             .await
-            .map_err(|e| AftError::TransferFailed(format!("S3 GET range ({}): {}", range, e)))?;
+            .map_err(|e| IftError::TransferFailed(format!("S3 GET range ({}): {}", range, e)))?;
 
         Ok(response.bytes().to_vec())
     }
@@ -180,7 +180,7 @@ impl ProtocolHandler for S3Handler {
         content_type: Option<&str>,
         _method: Option<&str>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (bucket, key) = make_bucket(url, opts).await?;
 
         let data = tokio::fs::read(source).await?;
@@ -190,10 +190,10 @@ impl ProtocolHandler for S3Handler {
         let response = bucket
             .put_object_with_content_type(&key, &data, ct)
             .await
-            .map_err(|e| AftError::TransferFailed(format!("S3 PUT: {}", e)))?;
+            .map_err(|e| IftError::TransferFailed(format!("S3 PUT: {}", e)))?;
 
         if response.status_code() != 200 {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: response.status_code(),
                 message: "S3 PUT failed".to_string(),
             });
@@ -206,13 +206,13 @@ impl ProtocolHandler for S3Handler {
         Ok(file_size)
     }
 
-    async fn list(&self, url: &str, opts: &ProtocolOptions) -> AftResult<Vec<DirectoryEntry>> {
+    async fn list(&self, url: &str, opts: &ProtocolOptions) -> IftResult<Vec<DirectoryEntry>> {
         let (bucket, prefix) = make_bucket(url, opts).await?;
 
         let results = bucket
             .list(prefix.clone(), Some("/".to_string()))
             .await
-            .map_err(|e| AftError::Other(format!("S3 LIST: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("S3 LIST: {}", e)))?;
 
         let mut entries = Vec::new();
 

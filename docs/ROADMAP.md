@@ -1,6 +1,6 @@
-# AFT Roadmap
+# IFT Roadmap
 
-Implementation progress for **AFT (Agentic File Transfer)** — a high-performance,
+Implementation progress for **IFT (Iron File Transfer)** — a high-performance,
 protocol-agnostic file transfer CLI for humans and AI agents.
 
 ---
@@ -10,7 +10,7 @@ protocol-agnostic file transfer CLI for humans and AI agents.
 | #   | Task                                                                             | Status |
 | --- | -------------------------------------------------------------------------------- | ------ |
 | 1   | Project scaffolding (Cargo.toml, .gitignore, README)                             | Done   |
-| 2   | Error types (`src/error.rs` — `AftError` enum with `thiserror`)                  | Done   |
+| 2   | Error types (`src/error.rs` — `IftError` enum with `thiserror`)                  | Done   |
 | 3   | CLI parser (`src/cli.rs` — clap derive with 9 subcommands)                       | Done   |
 | 4   | Protocol abstraction trait (`src/protocols/mod.rs` — `ProtocolHandler`)          | Done   |
 | 5   | Structured output module (`src/output.rs` — text/json/quiet formats)             | Done   |
@@ -100,7 +100,7 @@ protocol-agnostic file transfer CLI for humans and AI agents.
 | 49  | Neural network encoder-decoder cipher (`src/crypto/neural.rs` — trainable, OFB mode) | Done   |
 | 50  | DoD classification system (`src/crypto/classification.rs` — CUI through Top Secret)  | Done   |
 | 51  | DoD CDS protocol handler (`src/protocols/dod.rs` — classification-aware HTTPS)       | Done   |
-| 52  | Crypto CLI subcommand (`aft crypto keygen/train/encrypt/decrypt`)                    | Done   |
+| 52  | Crypto CLI subcommand (`ift crypto keygen/train/encrypt/decrypt`)                    | Done   |
 | 53  | Expanded test suite (131 tests — crypto, neural, classification, DoD protocol)       | Done   |
 
 ## Phase 10: Hardening, Performance & CI/CD
@@ -175,12 +175,12 @@ protocol-agnostic file transfer CLI for humans and AI agents.
 | 100 | TelemetryCollector convenience wrapper for batching events                   | Done   |
 | 101 | TelemetryEvent enum (commands, transfers, errors, app started)               | Done   |
 | 102 | Remote sync to OTLP/HTTP collector (reqwest async POST /v1/logs, OTLP JSON) | Done   |
-| 103 | CLI subcommand: `aft telemetry status`                                       | Done   |
-| 104 | CLI subcommand: `aft telemetry opt-in` / `opt-out`                           | Done   |
-| 105 | CLI subcommand: `aft telemetry reset` (regenerate installation ID)           | Done   |
-| 106 | CLI subcommand: `aft telemetry sync` (manual remote upload)                  | Done   |
-| 107 | CLI subcommand: `aft telemetry clear` / `export`                             | Done   |
-| 108 | CLI subcommand: `aft telemetry config` (endpoint/api-key setup)              | Done   |
+| 103 | CLI subcommand: `ift telemetry status`                                       | Done   |
+| 104 | CLI subcommand: `ift telemetry opt-in` / `opt-out`                           | Done   |
+| 105 | CLI subcommand: `ift telemetry reset` (regenerate installation ID)           | Done   |
+| 106 | CLI subcommand: `ift telemetry sync` (manual remote upload)                  | Done   |
+| 107 | CLI subcommand: `ift telemetry clear` / `export`                             | Done   |
+| 108 | CLI subcommand: `ift telemetry config` (endpoint/api-key setup)              | Done   |
 | 109 | Integration tests for telemetry config validation                            | Done   |
 
 ---
@@ -269,7 +269,7 @@ protocol-agnostic file transfer CLI for humans and AI agents.
 src/
 ├── main.rs                # Entry point, command dispatch, UTF-8 console init
 ├── cli.rs                 # CLI parser (clap derive, 12 subcommands)
-├── error.rs               # Error types (AftError enum)
+├── error.rs               # Error types (IftError enum)
 ├── engine.rs              # Transfer engine (parallel chunks, retry, checksums)
 ├── output.rs              # Structured output (text/json/quiet)
 ├── ontology.rs            # Agentic JSON-LD ontology schema

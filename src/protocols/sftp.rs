@@ -11,7 +11,7 @@ use russh_sftp::client::SftpSession;
 use tokio::io::AsyncWriteExt;
 
 use super::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 pub struct SftpHandler {
     scheme: String,
@@ -25,13 +25,13 @@ impl SftpHandler {
 
 /// Parse sftp://user:pass@host:port/path
 #[allow(clippy::type_complexity)]
-fn parse_sftp_url(url: &str) -> AftResult<(String, u16, Option<String>, Option<String>, String)> {
+fn parse_sftp_url(url: &str) -> IftResult<(String, u16, Option<String>, Option<String>, String)> {
     let parsed = url::Url::parse(url)
-        .map_err(|e| AftError::InvalidUrl(format!("Invalid SFTP URL: {}", e)))?;
+        .map_err(|e| IftError::InvalidUrl(format!("Invalid SFTP URL: {}", e)))?;
 
     let host = parsed
         .host_str()
-        .ok_or_else(|| AftError::InvalidUrl("SFTP URL missing host".into()))?
+        .ok_or_else(|| IftError::InvalidUrl("SFTP URL missing host".into()))?
         .to_string();
     let port = parsed.port().unwrap_or(22);
     let user = if parsed.username().is_empty() {
@@ -127,7 +127,7 @@ impl client::Handler for SshHandler {
 async fn open_sftp(
     url: &str,
     opts: &ProtocolOptions,
-) -> AftResult<(SftpSession, client::Handle<SshHandler>, String)> {
+) -> IftResult<(SftpSession, client::Handle<SshHandler>, String)> {
     let (host, port, user, pass, path) = parse_sftp_url(url)?;
 
     let config = client::Config::default();
@@ -139,7 +139,7 @@ async fn open_sftp(
 
     let mut session = client::connect(config, (host.as_str(), port), sh)
         .await
-        .map_err(|e| AftError::ConnectionFailed(format!("SSH connect: {}", e)))?;
+        .map_err(|e| IftError::ConnectionFailed(format!("SSH connect: {}", e)))?;
 
     // Determine credentials
     let ssh_user = user
@@ -183,13 +183,13 @@ async fn open_sftp(
             authenticated = session
                 .authenticate_password(&ssh_user, password)
                 .await
-                .map_err(|e| AftError::ConnectionFailed(format!("SSH auth: {}", e)))?
+                .map_err(|e| IftError::ConnectionFailed(format!("SSH auth: {}", e)))?
                 .success();
         }
     }
 
     if !authenticated {
-        return Err(AftError::PermissionDenied(
+        return Err(IftError::PermissionDenied(
             "SSH authentication failed. Provide credentials via URL or --auth, or ensure SSH keys are available.".into(),
         ));
     }
@@ -198,16 +198,16 @@ async fn open_sftp(
     let channel = session
         .channel_open_session()
         .await
-        .map_err(|e| AftError::ConnectionFailed(format!("SSH channel: {}", e)))?;
+        .map_err(|e| IftError::ConnectionFailed(format!("SSH channel: {}", e)))?;
 
     channel
         .request_subsystem(true, "sftp")
         .await
-        .map_err(|e| AftError::ConnectionFailed(format!("SFTP subsystem: {}", e)))?;
+        .map_err(|e| IftError::ConnectionFailed(format!("SFTP subsystem: {}", e)))?;
 
     let sftp = SftpSession::new(channel.into_stream())
         .await
-        .map_err(|e| AftError::ConnectionFailed(format!("SFTP session: {}", e)))?;
+        .map_err(|e| IftError::ConnectionFailed(format!("SFTP session: {}", e)))?;
 
     Ok((sftp, session, path))
 }
@@ -230,13 +230,13 @@ impl ProtocolHandler for SftpHandler {
         true
     }
 
-    async fn head(&self, url: &str, opts: &ProtocolOptions) -> AftResult<ResourceMetadata> {
+    async fn head(&self, url: &str, opts: &ProtocolOptions) -> IftResult<ResourceMetadata> {
         let (sftp, _session, path) = open_sftp(url, opts).await?;
 
         let meta = sftp
             .metadata(&path)
             .await
-            .map_err(|e| AftError::FileNotFound(format!("SFTP stat: {}", e)))?;
+            .map_err(|e| IftError::FileNotFound(format!("SFTP stat: {}", e)))?;
 
         Ok(ResourceMetadata {
             content_length: meta.size,
@@ -255,13 +255,13 @@ impl ProtocolHandler for SftpHandler {
         opts: &ProtocolOptions,
         _resume_from: Option<u64>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (sftp, _session, path) = open_sftp(url, opts).await?;
 
         let data = sftp
             .read(&path)
             .await
-            .map_err(|e| AftError::TransferFailed(format!("SFTP read: {}", e)))?;
+            .map_err(|e| IftError::TransferFailed(format!("SFTP read: {}", e)))?;
 
         let bytes_len = data.len() as u64;
 
@@ -282,8 +282,8 @@ impl ProtocolHandler for SftpHandler {
         _start: u64,
         _end: u64,
         _opts: &ProtocolOptions,
-    ) -> AftResult<Vec<u8>> {
-        Err(AftError::UnsupportedProtocol(
+    ) -> IftResult<Vec<u8>> {
+        Err(IftError::UnsupportedProtocol(
             "SFTP does not support range downloads".into(),
         ))
     }
@@ -296,7 +296,7 @@ impl ProtocolHandler for SftpHandler {
         _content_type: Option<&str>,
         _method: Option<&str>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (sftp, _session, path) = open_sftp(url, opts).await?;
 
         let data = tokio::fs::read(source).await?;
@@ -304,7 +304,7 @@ impl ProtocolHandler for SftpHandler {
 
         sftp.write(&path, &data)
             .await
-            .map_err(|e| AftError::TransferFailed(format!("SFTP write: {}", e)))?;
+            .map_err(|e| IftError::TransferFailed(format!("SFTP write: {}", e)))?;
 
         if let Some(ref cb) = progress {
             cb(file_size, Some(file_size));
@@ -313,7 +313,7 @@ impl ProtocolHandler for SftpHandler {
         Ok(file_size)
     }
 
-    async fn list(&self, url: &str, opts: &ProtocolOptions) -> AftResult<Vec<DirectoryEntry>> {
+    async fn list(&self, url: &str, opts: &ProtocolOptions) -> IftResult<Vec<DirectoryEntry>> {
         let (sftp, _session, path) = open_sftp(url, opts).await?;
 
         let dir_path = if path.is_empty() { "/" } else { &path };
@@ -321,7 +321,7 @@ impl ProtocolHandler for SftpHandler {
         let entries = sftp
             .read_dir(dir_path)
             .await
-            .map_err(|e| AftError::Other(format!("SFTP readdir: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("SFTP readdir: {}", e)))?;
 
         let result = entries
             .into_iter()

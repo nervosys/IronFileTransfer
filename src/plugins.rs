@@ -11,8 +11,8 @@
 //! ## Creating a Plugin
 //!
 //! ```rust,ignore
-//! use aft::plugins::{Plugin, PluginMetadata};
-//! use aft::protocols::ProtocolHandler;
+//! use ift::plugins::{Plugin, PluginMetadata};
+//! use ift::protocols::ProtocolHandler;
 //!
 //! struct MyPlugin;
 //!
@@ -41,7 +41,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 use crate::protocols::ProtocolHandler;
 
 // ── Plugin trait ────────────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ impl PluginRegistry {
     }
 
     /// Load all plugins from the default plugins directory (~/.aft/plugins/).
-    pub fn load_from_default_dir(&mut self) -> AftResult<Vec<PluginMetadata>> {
+    pub fn load_from_default_dir(&mut self) -> IftResult<Vec<PluginMetadata>> {
         let plugins_dir = default_plugins_dir()?;
         if !plugins_dir.exists() {
             return Ok(Vec::new());
@@ -102,7 +102,7 @@ impl PluginRegistry {
     }
 
     /// Load all plugins from a directory.
-    pub fn load_from_dir(&mut self, dir: &Path) -> AftResult<Vec<PluginMetadata>> {
+    pub fn load_from_dir(&mut self, dir: &Path) -> IftResult<Vec<PluginMetadata>> {
         let mut loaded = Vec::new();
 
         if !dir.is_dir() {
@@ -111,7 +111,7 @@ impl PluginRegistry {
 
         let ext = plugin_extension();
         let entries = std::fs::read_dir(dir)
-            .map_err(|_| AftError::Other("Cannot read plugins directory".into()))?;
+            .map_err(|_| IftError::Other("Cannot read plugins directory".into()))?;
 
         for entry in entries.flatten() {
             let path = entry.path();
@@ -137,10 +137,10 @@ impl PluginRegistry {
     /// A corresponding `.sha256` signature file must exist alongside the plugin
     /// (e.g., `myplugin.dll.sha256`) containing the hex-encoded SHA-256 hash of
     /// the plugin binary. This prevents loading of tampered or unsigned plugins.
-    pub fn load_plugin(&mut self, path: &Path) -> AftResult<PluginMetadata> {
+    pub fn load_plugin(&mut self, path: &Path) -> IftResult<PluginMetadata> {
         // Validate the path exists and is a file
         if !path.is_file() {
-            return Err(AftError::FileNotFound("Plugin file not found".into()));
+            return Err(IftError::FileNotFound("Plugin file not found".into()));
         }
 
         // ── Signature verification ──────────────────────────────────────
@@ -151,7 +151,7 @@ impl PluginRegistry {
         ));
 
         if !sig_path.is_file() {
-            return Err(AftError::PermissionDenied(format!(
+            return Err(IftError::PermissionDenied(format!(
                 "Plugin signature file not found: {:?}. \
                  Create it with: sha256sum {:?} > {:?}",
                 sig_path,
@@ -162,7 +162,7 @@ impl PluginRegistry {
 
         let expected_hash = std::fs::read_to_string(&sig_path)
             .map_err(|e| {
-                AftError::Other(format!("Cannot read signature file {:?}: {}", sig_path, e))
+                IftError::Other(format!("Cannot read signature file {:?}: {}", sig_path, e))
             })?
             .split_whitespace()
             .next()
@@ -171,19 +171,19 @@ impl PluginRegistry {
             .to_lowercase();
 
         if expected_hash.len() != 64 || !expected_hash.chars().all(|c| c.is_ascii_hexdigit()) {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "Invalid SHA-256 hash in {:?}: expected 64 hex chars",
                 sig_path,
             )));
         }
 
         let plugin_bytes = std::fs::read(path)
-            .map_err(|e| AftError::Other(format!("Cannot read plugin {:?}: {}", path, e)))?;
+            .map_err(|e| IftError::Other(format!("Cannot read plugin {:?}: {}", path, e)))?;
 
         let actual_hash = hex::encode(crate::crypto::primitives::sha256(&plugin_bytes));
 
         if actual_hash != expected_hash {
-            return Err(AftError::PermissionDenied(format!(
+            return Err(IftError::PermissionDenied(format!(
                 "Plugin signature mismatch for {:?}: \
                  expected {}, got {}. Plugin may have been tampered with.",
                 path, expected_hash, actual_hash,
@@ -194,13 +194,13 @@ impl PluginRegistry {
         // At this point the plugin has passed SHA-256 signature verification.
         let library = unsafe {
             libloading::Library::new(path)
-                .map_err(|e| AftError::Other(format!("Cannot load plugin {:?}: {}", path, e)))?
+                .map_err(|e| IftError::Other(format!("Cannot load plugin {:?}: {}", path, e)))?
         };
 
         let plugin: Box<dyn Plugin> = unsafe {
             let constructor: libloading::Symbol<unsafe extern "C" fn() -> *mut dyn Plugin> =
                 library.get(b"create_plugin").map_err(|e| {
-                    AftError::Other(format!(
+                    IftError::Other(format!(
                         "Plugin {:?} missing create_plugin symbol: {}",
                         path, e
                     ))
@@ -213,7 +213,7 @@ impl PluginRegistry {
         let scheme = metadata.scheme.clone();
 
         if self.plugins.contains_key(&scheme) {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "Plugin scheme '{}' already registered",
                 scheme
             )));
@@ -232,9 +232,9 @@ impl PluginRegistry {
     }
 
     /// Unload a plugin by scheme.
-    pub fn unload(&mut self, scheme: &str) -> AftResult<()> {
+    pub fn unload(&mut self, scheme: &str) -> IftResult<()> {
         if self.plugins.remove(scheme).is_none() {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "No plugin registered for scheme '{}'",
                 scheme
             )));
@@ -263,9 +263,9 @@ impl PluginRegistry {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-fn default_plugins_dir() -> AftResult<PathBuf> {
-    let aft_dir = crate::config::ensure_aft_dir()?;
-    Ok(aft_dir.join("plugins"))
+fn default_plugins_dir() -> IftResult<PathBuf> {
+    let ift_dir = crate::config::ensure_ift_dir()?;
+    Ok(ift_dir.join("plugins"))
 }
 
 fn plugin_extension() -> &'static str {
@@ -286,12 +286,12 @@ use std::sync::OnceLock;
 static PLUGIN_REGISTRY: OnceLock<Mutex<PluginRegistry>> = OnceLock::new();
 
 /// Initialize the global plugin registry (called once at startup).
-pub fn init_registry() -> AftResult<()> {
+pub fn init_registry() -> IftResult<()> {
     let mut registry = PluginRegistry::new();
     let _ = registry.load_from_default_dir();
     PLUGIN_REGISTRY
         .set(Mutex::new(registry))
-        .map_err(|_| AftError::Other("Plugin registry already initialized".into()))?;
+        .map_err(|_| IftError::Other("Plugin registry already initialized".into()))?;
     Ok(())
 }
 

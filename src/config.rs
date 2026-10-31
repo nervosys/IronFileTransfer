@@ -7,12 +7,12 @@
 
 use serde::Deserialize;
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 /// Top-level configuration structure mirroring CLI global options.
 #[derive(Debug, Deserialize, Default)]
 #[serde(default)]
-pub struct AftConfig {
+pub struct IftConfig {
     /// Default output format ("text", "json", "quiet")
     pub format: Option<String>,
     /// Number of parallel connections
@@ -56,14 +56,14 @@ pub fn config_path() -> Option<std::path::PathBuf> {
 }
 
 /// Load configuration from `~/.aft/config.toml`. Returns default if file doesn't exist.
-pub fn load_config() -> AftResult<AftConfig> {
+pub fn load_config() -> IftResult<IftConfig> {
     let path = match config_path() {
         Some(p) => p,
-        None => return Ok(AftConfig::default()),
+        None => return Ok(IftConfig::default()),
     };
 
     if !path.exists() {
-        return Ok(AftConfig::default());
+        return Ok(IftConfig::default());
     }
 
     // Warn if config file is world-readable (may contain tokens/keys)
@@ -85,48 +85,48 @@ pub fn load_config() -> AftResult<AftConfig> {
     }
 
     let content = std::fs::read_to_string(&path)
-        .map_err(|e| AftError::Other(format!("Failed to read config {}: {}", path.display(), e)))?;
+        .map_err(|e| IftError::Other(format!("Failed to read config {}: {}", path.display(), e)))?;
 
-    let config: AftConfig = toml::from_str(&content)
-        .map_err(|e| AftError::Other(format!("Invalid config {}: {}", path.display(), e)))?;
+    let config: IftConfig = toml::from_str(&content)
+        .map_err(|e| IftError::Other(format!("Invalid config {}: {}", path.display(), e)))?;
 
     Ok(config)
 }
 
 /// Ensure the `~/.aft/` directory exists.
-pub fn ensure_aft_dir() -> AftResult<std::path::PathBuf> {
+pub fn ensure_ift_dir() -> IftResult<std::path::PathBuf> {
     let dir = dirs::home_dir()
-        .ok_or_else(|| AftError::Other("Cannot determine home directory".into()))?
+        .ok_or_else(|| IftError::Other("Cannot determine home directory".into()))?
         .join(".aft");
 
     if !dir.exists() {
         std::fs::create_dir_all(&dir)
-            .map_err(|e| AftError::Other(format!("Cannot create ~/.aft: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("Cannot create ~/.aft: {}", e)))?;
     }
 
     Ok(dir)
 }
 
-impl AftConfig {
+impl IftConfig {
     /// Validate configuration values are within sane bounds.
-    pub fn validate(&self) -> AftResult<()> {
+    pub fn validate(&self) -> IftResult<()> {
         if let Some(p) = self.parallel {
             if p == 0 || p > 256 {
-                return Err(AftError::Other(
+                return Err(IftError::Other(
                     "Config error: 'parallel' must be 1–256".into(),
                 ));
             }
         }
         if let Some(t) = self.connect_timeout {
             if t > 3600 {
-                return Err(AftError::Other(
+                return Err(IftError::Other(
                     "Config error: 'connect_timeout' must be 0–3600".into(),
                 ));
             }
         }
         if let Some(r) = self.retries {
             if r > 100 {
-                return Err(AftError::Other(
+                return Err(IftError::Other(
                     "Config error: 'retries' must be 0–100".into(),
                 ));
             }

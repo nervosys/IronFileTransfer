@@ -5,11 +5,11 @@ use serde::Serialize;
 
 use crate::output::Format;
 
-/// Full ontology schema describing all AFT capabilities.
+/// Full ontology schema describing all IFT capabilities.
 ///
 /// This is a self-describing, machine-readable specification that AI agents
-/// can use to discover, understand, and correctly invoke AFT operations.
-/// Output via `aft schema` or `aft --agent schema`.
+/// can use to discover, understand, and correctly invoke IFT operations.
+/// Output via `ift schema` or `ift --agent schema`.
 #[derive(Serialize)]
 pub struct OntologySchema {
     /// JSON-LD context for semantic interoperability
@@ -57,7 +57,7 @@ pub struct OperationSchema {
 /// deleting one are both mutations, but only the second loses data the caller
 /// did not create -- and `remove` and `move` are exactly the two operations
 /// that were missing from this ontology entirely, so an agent reading it
-/// would have concluded aft cannot delete anything.
+/// would have concluded ift cannot delete anything.
 #[derive(Serialize, Debug, Clone)]
 pub struct OperationEffects {
     /// Writes to a destination: a local path, a remote target, or a device.
@@ -165,15 +165,15 @@ pub fn generate_schema() -> OntologySchema {
     OntologySchema {
         context: "https://schema.org".to_string(),
         type_: "SoftwareApplication".to_string(),
-        name: "aft".to_string(),
+        name: "ift".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        description: "Agentic File Transfer — High-performance file transfer CLI for humans and AI agents".to_string(),
+        description: "Iron File Transfer — High-performance file transfer CLI for humans and AI agents".to_string(),
 
         operations: vec![
             OperationSchema {
                 name: "get".to_string(),
                 description: "Download a file from a URL to local storage".to_string(),
-                usage: "aft get <url> [-o output]".to_string(),
+                usage: "ift get <url> [-o output]".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "url".to_string(), type_: "string".to_string(), required: true, description: "Source URL (http, https, ftp, sftp, s3, file)".to_string(), default: None },
                     ParameterSchema { name: "--output / -o".to_string(), type_: "string".to_string(), required: false, description: "Output file or directory path".to_string(), default: Some("filename from URL".to_string()) },
@@ -191,7 +191,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "put".to_string(),
                 description: "Upload a local file to a remote URL".to_string(),
-                usage: "aft put <source> <url>".to_string(),
+                usage: "ift put <source> <url>".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "source".to_string(), type_: "string".to_string(), required: true, description: "Local file path to upload".to_string(), default: None },
                     ParameterSchema { name: "url".to_string(), type_: "string".to_string(), required: true, description: "Destination URL".to_string(), default: None },
@@ -204,7 +204,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "copy".to_string(),
                 description: "Copy files between any two locations (local or remote)".to_string(),
-                usage: "aft copy <source> <destination>".to_string(),
+                usage: "ift copy <source> <destination>".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "source".to_string(), type_: "string".to_string(), required: true, description: "Source path or URL".to_string(), default: None },
                     ParameterSchema { name: "destination".to_string(), type_: "string".to_string(), required: true, description: "Destination path or URL".to_string(), default: None },
@@ -216,7 +216,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "head".to_string(),
                 description: "Inspect remote resource metadata without downloading".to_string(),
-                usage: "aft head <url>".to_string(),
+                usage: "ift head <url>".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "url".to_string(), type_: "string".to_string(), required: true, description: "URL to inspect".to_string(), default: None },
                 ],
@@ -226,7 +226,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "ls".to_string(),
                 description: "List contents of a remote or local directory".to_string(),
-                usage: "aft ls <url>".to_string(),
+                usage: "ift ls <url>".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "url".to_string(), type_: "string".to_string(), required: true, description: "Directory URL or path".to_string(), default: None },
                 ],
@@ -236,7 +236,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "checksum".to_string(),
                 description: "Compute checksum of a local file".to_string(),
-                usage: "aft checksum <path> [--algorithm sha256]".to_string(),
+                usage: "ift checksum <path> [--algorithm sha256]".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "path".to_string(), type_: "string".to_string(), required: true, description: "File path".to_string(), default: None },
                     ParameterSchema { name: "--algorithm / -a".to_string(), type_: "enum(sha256, sha512, md5)".to_string(), required: false, description: "Hash algorithm".to_string(), default: Some("sha256".to_string()) },
@@ -247,7 +247,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "schema".to_string(),
                 description: "Output the full agentic ontology schema as JSON".to_string(),
-                usage: "aft schema".to_string(),
+                usage: "ift schema".to_string(),
                 parameters: vec![],
                 returns: "OntologySchema JSON document".to_string(),
                 effects: OperationEffects::new(false, false, false, false),
@@ -255,7 +255,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "capabilities".to_string(),
                 description: "List available protocols, operations, and features".to_string(),
-                usage: "aft capabilities".to_string(),
+                usage: "ift capabilities".to_string(),
                 parameters: vec![],
                 returns: "Capabilities report".to_string(),
                 effects: OperationEffects::new(false, false, false, false),
@@ -263,7 +263,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "serve".to_string(),
                 description: "Start an AFTP file server for high-performance binary transfers".to_string(),
-                usage: "aft serve <root> [--port 2600] [--bind 0.0.0.0] [--auth-token TOKEN] [--compression]".to_string(),
+                usage: "ift serve <root> [--port 2600] [--bind 0.0.0.0] [--auth-token TOKEN] [--compression]".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "root".to_string(), type_: "string".to_string(), required: true, description: "Directory to serve files from".to_string(), default: None },
                     ParameterSchema { name: "--port".to_string(), type_: "integer".to_string(), required: false, description: "TCP port (default 2600)".to_string(), default: Some("2600".to_string()) },
@@ -277,7 +277,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "crypto".to_string(),
                 description: "Quantum-resistant cryptographic operations (ML-KEM-1024 + AES-256-GCM, neural network cipher)".to_string(),
-                usage: "aft crypto <keygen|train|encrypt|decrypt> [options]".to_string(),
+                usage: "ift crypto <keygen|train|encrypt|decrypt> [options]".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "action".to_string(), type_: "enum(keygen, train, encrypt, decrypt)".to_string(), required: true, description: "Cryptographic action to perform".to_string(), default: None },
                     ParameterSchema { name: "--input / -i".to_string(), type_: "string".to_string(), required: false, description: "Input file path".to_string(), default: None },
@@ -292,22 +292,22 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "telemetry".to_string(),
                 description: "Manage anonymous usage telemetry collection and reporting".to_string(),
-                usage: "aft telemetry <status|opt-in|opt-out|reset|sync|clear|export|config>".to_string(),
+                usage: "ift telemetry <status|opt-in|opt-out|reset|sync|clear|export|config>".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "action".to_string(), type_: "enum(status, opt-in, opt-out, reset, sync, clear, export, config)".to_string(), required: true, description: "Telemetry management action".to_string(), default: None },
                 ],
                 returns: "Telemetry status or action confirmation".to_string(),
                 effects: OperationEffects::new(true, false, true, false),
             },
-            // Added because the ontology declared eleven of aft's sixteen
+            // Added because the ontology declared eleven of ift's sixteen
             // commands. The five below were absent, and two of them --
             // `remove` and `move` -- are the only operations that lose data,
             // so an agent trusting this document as complete would have
-            // concluded aft cannot delete anything.
+            // concluded ift cannot delete anything.
             OperationSchema {
                 name: "sync".to_string(),
                 description: "Reconcile a directory tree against another, transferring only what differs".to_string(),
-                usage: "aft sync <source> <destination>".to_string(),
+                usage: "ift sync <source> <destination>".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "source".to_string(), type_: "string".to_string(), required: true, description: "Source directory or URL".to_string(), default: None },
                     ParameterSchema { name: "destination".to_string(), type_: "string".to_string(), required: true, description: "Destination directory or URL".to_string(), default: None },
@@ -318,7 +318,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "mv".to_string(),
                 description: "Move a file or directory. The source does not survive".to_string(),
-                usage: "aft mv <source> <destination>".to_string(),
+                usage: "ift mv <source> <destination>".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "source".to_string(), type_: "string".to_string(), required: true, description: "Source path or URL".to_string(), default: None },
                     ParameterSchema { name: "destination".to_string(), type_: "string".to_string(), required: true, description: "Destination path or URL".to_string(), default: None },
@@ -329,7 +329,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "rm".to_string(),
                 description: "Delete a file or directory".to_string(),
-                usage: "aft rm <path>".to_string(),
+                usage: "ift rm <path>".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "path".to_string(), type_: "string".to_string(), required: true, description: "Path or URL to delete".to_string(), default: None },
                 ],
@@ -339,7 +339,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "mkdir".to_string(),
                 description: "Create a directory".to_string(),
-                usage: "aft mkdir <path>".to_string(),
+                usage: "ift mkdir <path>".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "path".to_string(), type_: "string".to_string(), required: true, description: "Directory path or URL to create".to_string(), default: None },
                 ],
@@ -349,7 +349,7 @@ pub fn generate_schema() -> OntologySchema {
             OperationSchema {
                 name: "plugin".to_string(),
                 description: "Load or unload a protocol plugin".to_string(),
-                usage: "aft plugin <action> [name]".to_string(),
+                usage: "ift plugin <action> [name]".to_string(),
                 parameters: vec![
                     ParameterSchema { name: "action".to_string(), type_: "enum(list, load, unload)".to_string(), required: true, description: "What to do with the plugin registry".to_string(), default: None },
                     ParameterSchema { name: "name".to_string(), type_: "string".to_string(), required: false, description: "Plugin name, for load and unload".to_string(), default: None },
@@ -368,7 +368,7 @@ pub fn generate_schema() -> OntologySchema {
             ProtocolInfo { scheme: "sftp".to_string(), name: "SFTP (SSH File Transfer)".to_string(), supports_download: true, supports_upload: true, supports_list: true, supports_resume: true, supports_ranges: true, status: "planned".to_string() },
             ProtocolInfo { scheme: "scp".to_string(), name: "SCP (Secure Copy)".to_string(), supports_download: true, supports_upload: true, supports_list: false, supports_resume: false, supports_ranges: false, status: "planned".to_string() },
             ProtocolInfo { scheme: "s3".to_string(), name: "Amazon S3".to_string(), supports_download: true, supports_upload: true, supports_list: true, supports_resume: true, supports_ranges: true, status: "planned".to_string() },
-            ProtocolInfo { scheme: "aftp".to_string(), name: "AFTP (Agentic File Transfer Protocol)".to_string(), supports_download: true, supports_upload: true, supports_list: true, supports_resume: true, supports_ranges: true, status: "active".to_string() },
+            ProtocolInfo { scheme: "aftp".to_string(), name: "AFTP (Iron File Transfer Protocol)".to_string(), supports_download: true, supports_upload: true, supports_list: true, supports_resume: true, supports_ranges: true, status: "active".to_string() },
         ],
 
         output_formats: vec!["text".to_string(), "json".to_string(), "quiet".to_string()],
@@ -416,31 +416,31 @@ pub fn generate_schema() -> OntologySchema {
             ],
             output_parsing: "Parse stdout as JSON. Check .status field first: 'success' or 'error'. Access transfer metrics via .transfer object.".to_string(),
             error_handling: "On error, .error contains a human-readable message. Exit code is 1 on failure, 0 on success.".to_string(),
-            discovery: "Run 'aft schema' for full capability schema. Run 'aft capabilities' for a summary.".to_string(),
+            discovery: "Run 'ift schema' for full capability schema. Run 'ift capabilities' for a summary.".to_string(),
             examples: vec![
                 AgentExample {
                     task: "Download a file and get structured result".to_string(),
-                    command: "aft --agent get https://example.com/data.json -o /tmp/data.json".to_string(),
+                    command: "ift --agent get https://example.com/data.json -o /tmp/data.json".to_string(),
                     notes: "The --agent flag ensures JSON output with no interactive progress bars".to_string(),
                 },
                 AgentExample {
                     task: "Check file metadata before downloading".to_string(),
-                    command: "aft --agent head https://example.com/large-file.tar.gz".to_string(),
+                    command: "ift --agent head https://example.com/large-file.tar.gz".to_string(),
                     notes: "Use .metadata.content_length to check file size before transfer".to_string(),
                 },
                 AgentExample {
                     task: "Download with integrity verification".to_string(),
-                    command: "aft --agent get https://example.com/release.tar.gz --checksum sha256 --checksum-value abc123...".to_string(),
+                    command: "ift --agent get https://example.com/release.tar.gz --checksum sha256 --checksum-value abc123...".to_string(),
                     notes: "Transfer fails with checksum_mismatch error if hash doesn't match".to_string(),
                 },
                 AgentExample {
                     task: "List directory contents".to_string(),
-                    command: "aft --agent ls /var/data/".to_string(),
+                    command: "ift --agent ls /var/data/".to_string(),
                     notes: "Returns .entries array with name, size, is_directory, last_modified".to_string(),
                 },
                 AgentExample {
                     task: "Resume an interrupted large download".to_string(),
-                    command: "aft --agent get https://example.com/huge.iso -o /tmp/huge.iso --resume".to_string(),
+                    command: "ift --agent get https://example.com/huge.iso -o /tmp/huge.iso --resume".to_string(),
                     notes: "Automatically detects existing partial file and resumes from last byte".to_string(),
                 },
             ],
@@ -495,7 +495,7 @@ pub fn print_capabilities(format: Format) {
             println!();
             println!(
                 "{}",
-                " AFT - Agentic File Transfer ".on_blue().white().bold()
+                " IFT - Iron File Transfer ".on_blue().white().bold()
             );
             println!(" {} {}", "Version:".dimmed(), env!("CARGO_PKG_VERSION"));
             println!();
@@ -549,7 +549,7 @@ pub fn print_capabilities(format: Format) {
             println!(
                 "  {} Use '{}' for full machine-readable schema",
                 "*".normal(),
-                "aft schema".yellow().bold()
+                "ift schema".yellow().bold()
             );
             println!();
         }
@@ -561,7 +561,7 @@ mod completeness {
     use super::*;
     use clap::CommandFactory;
 
-    /// Every command aft accepts has an ontology entry.
+    /// Every command ift accepts has an ontology entry.
     ///
     /// Walks clap's own parsed `Command`, so an operation cannot be added to
     /// the CLI without appearing here. This test exists because the ontology

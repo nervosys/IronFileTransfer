@@ -5,14 +5,14 @@
 //! The FEC data plane needs exactly two primitives: **AES-256-GCM** (seal/open a
 //! symbol — see [`super::envelope`]) and **HMAC-SHA256** (derive the per-session
 //! symbol key — see [`super::derive_symbol_key`]). Both come from IronCrypto via
-//! [`crate::crypto::primitives`], the single boundary for AFT's cryptography.
+//! [`crate::crypto::primitives`], the single boundary for IFT's cryptography.
 //!
 //! The wire format is AES-256-GCM with a 96-bit nonce, a 128-bit tag, and the
 //! caller's AAD. This module is the *only* place the FEC data plane touches an
 //! AEAD or a MAC; both callers go through it.
 
 use crate::crypto::primitives::{self, GCM_NONCE_LEN, GCM_TAG_LEN};
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 /// AES-256 key length.
 pub const KEY_LEN: usize = 32;
@@ -26,7 +26,7 @@ pub const TAG_LEN: usize = GCM_TAG_LEN;
 /// The KDF for the per-session symbol key. Accepts a key of any length. It
 /// returns an error only if the IronCrypto backend itself refuses to run, and
 /// callers must propagate that rather than continue without a key.
-pub fn hmac_sha256(key: &[u8], parts: &[&[u8]]) -> AftResult<[u8; 32]> {
+pub fn hmac_sha256(key: &[u8], parts: &[&[u8]]) -> IftResult<[u8; 32]> {
     primitives::hmac_sha256(key, parts)
 }
 
@@ -35,35 +35,35 @@ pub fn hmac_sha256(key: &[u8], parts: &[&[u8]]) -> AftResult<[u8; 32]> {
 ///
 /// `key` must be [`KEY_LEN`] bytes and `nonce` [`NONCE_LEN`] bytes; a wrong
 /// length is an error rather than a panic.
-pub fn seal(key: &[u8], nonce: &[u8], aad: &[u8], plaintext: &[u8]) -> AftResult<Vec<u8>> {
+pub fn seal(key: &[u8], nonce: &[u8], aad: &[u8], plaintext: &[u8]) -> IftResult<Vec<u8>> {
     check_lengths(key, nonce)?;
     primitives::gcm_seal(key, nonce, aad, plaintext)
 }
 
 /// AES-256-GCM open. `sealed` is `ciphertext || tag`. Returns the recovered
 /// plaintext, or an error if authentication fails (forged/corrupt/wrong key).
-pub fn open(key: &[u8], nonce: &[u8], aad: &[u8], sealed: &[u8]) -> AftResult<Vec<u8>> {
+pub fn open(key: &[u8], nonce: &[u8], aad: &[u8], sealed: &[u8]) -> IftResult<Vec<u8>> {
     check_lengths(key, nonce)?;
     if sealed.len() < TAG_LEN {
-        return Err(AftError::Other(
+        return Err(IftError::Other(
             "FEC sealed symbol shorter than its tag".to_string(),
         ));
     }
     primitives::gcm_open(key, nonce, aad, sealed).map_err(|_| {
-        AftError::Other("FEC symbol authentication failed".to_string())
+        IftError::Other("FEC symbol authentication failed".to_string())
     })
 }
 
-fn check_lengths(key: &[u8], nonce: &[u8]) -> AftResult<()> {
+fn check_lengths(key: &[u8], nonce: &[u8]) -> IftResult<()> {
     if key.len() != KEY_LEN {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "FEC symbol key must be {} bytes, got {}",
             KEY_LEN,
             key.len()
         )));
     }
     if nonce.len() != NONCE_LEN {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "FEC nonce must be {} bytes, got {}",
             NONCE_LEN,
             nonce.len()

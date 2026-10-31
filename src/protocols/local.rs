@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 pub struct LocalHandler;
 
@@ -29,14 +29,14 @@ impl ProtocolHandler for LocalHandler {
         true
     }
 
-    async fn head(&self, url: &str, _opts: &ProtocolOptions) -> AftResult<ResourceMetadata> {
+    async fn head(&self, url: &str, _opts: &ProtocolOptions) -> IftResult<ResourceMetadata> {
         let path = url_to_path(url);
         let metadata = tokio::fs::metadata(&path)
             .await
             .map_err(|e| match e.kind() {
-                std::io::ErrorKind::NotFound => AftError::FileNotFound(path.clone()),
-                std::io::ErrorKind::PermissionDenied => AftError::PermissionDenied(path.clone()),
-                _ => AftError::Io(e),
+                std::io::ErrorKind::NotFound => IftError::FileNotFound(path.clone()),
+                std::io::ErrorKind::PermissionDenied => IftError::PermissionDenied(path.clone()),
+                _ => IftError::Io(e),
             })?;
 
         let last_modified = metadata
@@ -61,7 +61,7 @@ impl ProtocolHandler for LocalHandler {
         _opts: &ProtocolOptions,
         resume_from: Option<u64>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let source_path = url_to_path(url);
 
         // Fast path: kernel-level copy when no resume is needed.
@@ -69,11 +69,11 @@ impl ProtocolHandler for LocalHandler {
             let sp = source_path.clone();
             let dp = dest.to_path_buf();
             let cb = progress;
-            let copied = tokio::task::spawn_blocking(move || -> AftResult<u64> {
+            let copied = tokio::task::spawn_blocking(move || -> IftResult<u64> {
                 let n = std::fs::copy(&sp, &dp).map_err(|e| match e.kind() {
-                    std::io::ErrorKind::NotFound => AftError::FileNotFound(sp.clone()),
-                    std::io::ErrorKind::PermissionDenied => AftError::PermissionDenied(sp.clone()),
-                    _ => AftError::Io(e),
+                    std::io::ErrorKind::NotFound => IftError::FileNotFound(sp.clone()),
+                    std::io::ErrorKind::PermissionDenied => IftError::PermissionDenied(sp.clone()),
+                    _ => IftError::Io(e),
                 })?;
                 if let Some(ref cb) = cb {
                     cb(n, Some(n));
@@ -81,7 +81,7 @@ impl ProtocolHandler for LocalHandler {
                 Ok(n)
             })
             .await
-            .map_err(|e| AftError::Other(format!("spawn_blocking: {}", e)))??;
+            .map_err(|e| IftError::Other(format!("spawn_blocking: {}", e)))??;
             return Ok(copied);
         }
 
@@ -89,11 +89,11 @@ impl ProtocolHandler for LocalHandler {
         let mut source = tokio::fs::File::open(&source_path)
             .await
             .map_err(|e| match e.kind() {
-                std::io::ErrorKind::NotFound => AftError::FileNotFound(source_path.clone()),
+                std::io::ErrorKind::NotFound => IftError::FileNotFound(source_path.clone()),
                 std::io::ErrorKind::PermissionDenied => {
-                    AftError::PermissionDenied(source_path.clone())
+                    IftError::PermissionDenied(source_path.clone())
                 }
-                _ => AftError::Io(e),
+                _ => IftError::Io(e),
             })?;
         let total_size = source.metadata().await?.len();
         let mut bytes_written = 0u64;
@@ -129,7 +129,7 @@ impl ProtocolHandler for LocalHandler {
         start: u64,
         end: u64,
         _opts: &ProtocolOptions,
-    ) -> AftResult<Vec<u8>> {
+    ) -> IftResult<Vec<u8>> {
         use tokio::io::AsyncSeekExt;
         let path = url_to_path(url);
         let mut file = tokio::fs::File::open(&path).await?;
@@ -148,7 +148,7 @@ impl ProtocolHandler for LocalHandler {
         _content_type: Option<&str>,
         _method: Option<&str>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let dest_path = url_to_path(url);
 
         if let Some(parent) = Path::new(&dest_path).parent() {
@@ -159,27 +159,27 @@ impl ProtocolHandler for LocalHandler {
         let sp = source.to_path_buf();
         let dp = dest_path.clone();
         let cb = progress;
-        let copied = tokio::task::spawn_blocking(move || -> AftResult<u64> {
-            let n = std::fs::copy(&sp, &dp).map_err(AftError::Io)?;
+        let copied = tokio::task::spawn_blocking(move || -> IftResult<u64> {
+            let n = std::fs::copy(&sp, &dp).map_err(IftError::Io)?;
             if let Some(ref cb) = cb {
                 cb(n, Some(n));
             }
             Ok(n)
         })
         .await
-        .map_err(|e| AftError::Other(format!("spawn_blocking: {}", e)))??;
+        .map_err(|e| IftError::Other(format!("spawn_blocking: {}", e)))??;
         Ok(copied)
     }
 
-    async fn list(&self, url: &str, _opts: &ProtocolOptions) -> AftResult<Vec<DirectoryEntry>> {
+    async fn list(&self, url: &str, _opts: &ProtocolOptions) -> IftResult<Vec<DirectoryEntry>> {
         let path = url_to_path(url);
         let mut entries = Vec::new();
         let mut dir = tokio::fs::read_dir(&path)
             .await
             .map_err(|e| match e.kind() {
-                std::io::ErrorKind::NotFound => AftError::FileNotFound(path.clone()),
-                std::io::ErrorKind::PermissionDenied => AftError::PermissionDenied(path.clone()),
-                _ => AftError::Io(e),
+                std::io::ErrorKind::NotFound => IftError::FileNotFound(path.clone()),
+                std::io::ErrorKind::PermissionDenied => IftError::PermissionDenied(path.clone()),
+                _ => IftError::Io(e),
             })?;
 
         while let Some(entry) = dir.next_entry().await? {
@@ -218,14 +218,14 @@ impl ProtocolHandler for LocalHandler {
         true
     }
 
-    async fn delete(&self, url: &str, _recursive: bool, _opts: &ProtocolOptions) -> AftResult<()> {
+    async fn delete(&self, url: &str, _recursive: bool, _opts: &ProtocolOptions) -> IftResult<()> {
         let path = url_to_path(url);
         let meta = tokio::fs::metadata(&path)
             .await
             .map_err(|e| match e.kind() {
-                std::io::ErrorKind::NotFound => AftError::FileNotFound(path.clone()),
-                std::io::ErrorKind::PermissionDenied => AftError::PermissionDenied(path.clone()),
-                _ => AftError::Io(e),
+                std::io::ErrorKind::NotFound => IftError::FileNotFound(path.clone()),
+                std::io::ErrorKind::PermissionDenied => IftError::PermissionDenied(path.clone()),
+                _ => IftError::Io(e),
             })?;
 
         if meta.is_dir() {
@@ -236,7 +236,7 @@ impl ProtocolHandler for LocalHandler {
         Ok(())
     }
 
-    async fn rename(&self, from: &str, to: &str, _opts: &ProtocolOptions) -> AftResult<()> {
+    async fn rename(&self, from: &str, to: &str, _opts: &ProtocolOptions) -> IftResult<()> {
         let src = url_to_path(from);
         let dst = url_to_path(to);
         if let Some(parent) = std::path::Path::new(&dst).parent() {
@@ -246,7 +246,7 @@ impl ProtocolHandler for LocalHandler {
         Ok(())
     }
 
-    async fn mkdir(&self, url: &str, _opts: &ProtocolOptions) -> AftResult<()> {
+    async fn mkdir(&self, url: &str, _opts: &ProtocolOptions) -> IftResult<()> {
         let path = url_to_path(url);
         tokio::fs::create_dir_all(&path).await?;
         Ok(())
@@ -257,21 +257,21 @@ impl ProtocolHandler for LocalHandler {
         url: &str,
         mtime: chrono::DateTime<chrono::Utc>,
         _opts: &ProtocolOptions,
-    ) -> AftResult<()> {
+    ) -> IftResult<()> {
         let path = url_to_path(url);
         let system_time = std::time::SystemTime::from(mtime);
         let file = std::fs::OpenOptions::new()
             .write(true)
             .open(&path)
             .map_err(|e| match e.kind() {
-                std::io::ErrorKind::NotFound => AftError::FileNotFound(path.clone()),
-                _ => AftError::Io(e),
+                std::io::ErrorKind::NotFound => IftError::FileNotFound(path.clone()),
+                _ => IftError::Io(e),
             })?;
         file.set_modified(system_time)?;
         Ok(())
     }
 
-    async fn exists(&self, url: &str, _opts: &ProtocolOptions) -> AftResult<bool> {
+    async fn exists(&self, url: &str, _opts: &ProtocolOptions) -> IftResult<bool> {
         let path = url_to_path(url);
         Ok(std::path::Path::new(&path).exists())
     }

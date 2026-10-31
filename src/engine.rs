@@ -7,7 +7,7 @@ use ic_core::traits::Digest;
 use md5::Digest as _;
 use tokio::sync::Mutex;
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 use crate::protocols::{ProtocolHandler, ProtocolOptions};
 
 /// Progress callback type: (bytes_transferred, total_size)
@@ -85,7 +85,7 @@ pub async fn download(
     opts: &ProtocolOptions,
     config: &TransferConfig,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<TransferResult> {
+) -> IftResult<TransferResult> {
     let start = std::time::Instant::now();
     let mut retries = 0u32;
 
@@ -192,7 +192,7 @@ pub async fn upload(
     content_type: Option<&str>,
     method: Option<&str>,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<TransferResult> {
+) -> IftResult<TransferResult> {
     let start = std::time::Instant::now();
     let mut retries = 0u32;
     let mut last_err = None;
@@ -242,7 +242,7 @@ pub async fn upload(
     }
 
     Err(last_err
-        .unwrap_or_else(|| AftError::TransferFailed("Upload failed after all retries".to_string())))
+        .unwrap_or_else(|| IftError::TransferFailed("Upload failed after all retries".to_string())))
 }
 
 /// Single-stream download with retry and exponential backoff
@@ -256,7 +256,7 @@ async fn retry_download(
     resume_from: Option<u64>,
     retries: &mut u32,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<u64> {
+) -> IftResult<u64> {
     let mut last_err = None;
 
     while *retries <= config.max_retries {
@@ -284,7 +284,7 @@ async fn retry_download(
     }
 
     Err(last_err.unwrap_or_else(|| {
-        AftError::TransferFailed("Download failed after all retries".to_string())
+        IftError::TransferFailed("Download failed after all retries".to_string())
     }))
 }
 
@@ -305,9 +305,9 @@ async fn chunked_download(
     config: &TransferConfig,
     total_size: u64,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<u64> {
+) -> IftResult<u64> {
     if total_size > MAX_DOWNLOAD_SIZE {
-        return Err(AftError::TransferFailed(format!(
+        return Err(IftError::TransferFailed(format!(
             "File size {} bytes exceeds maximum download size of {} bytes",
             total_size, MAX_DOWNLOAD_SIZE
         )));
@@ -345,7 +345,7 @@ async fn chunked_download(
             .clone()
             .acquire_owned()
             .await
-            .map_err(|e| AftError::Other(e.to_string()))?;
+            .map_err(|e| IftError::Other(e.to_string()))?;
 
         let opts = opts.clone();
         let dest = dest.clone();
@@ -386,7 +386,7 @@ async fn chunked_download(
             }
 
             drop(permit);
-            Ok::<u64, AftError>(chunk_bytes)
+            Ok::<u64, IftError>(chunk_bytes)
         });
 
         handles.push(handle);
@@ -394,7 +394,7 @@ async fn chunked_download(
 
     let mut total_bytes = 0u64;
     for handle in handles {
-        let bytes = handle.await.map_err(|e| AftError::Other(e.to_string()))??;
+        let bytes = handle.await.map_err(|e| IftError::Other(e.to_string()))??;
         total_bytes += bytes;
     }
 
@@ -405,7 +405,7 @@ async fn chunked_download(
 async fn compute_and_verify_checksum(
     path: &Path,
     config: &ChecksumConfig,
-) -> AftResult<ChecksumResult> {
+) -> IftResult<ChecksumResult> {
     use tokio::io::AsyncReadExt;
 
     let mut file = tokio::fs::File::open(path).await?;
@@ -446,7 +446,7 @@ async fn compute_and_verify_checksum(
             hex::encode(hasher.finalize())
         }
         _ => {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "Unsupported checksum algorithm: {}",
                 config.algorithm
             )));
@@ -457,7 +457,7 @@ async fn compute_and_verify_checksum(
         if expected.eq_ignore_ascii_case(&hash_value) {
             true
         } else {
-            return Err(AftError::ChecksumMismatch {
+            return Err(IftError::ChecksumMismatch {
                 expected: expected.clone(),
                 actual: hash_value,
             });

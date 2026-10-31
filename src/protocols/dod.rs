@@ -16,17 +16,17 @@
 use async_trait::async_trait;
 
 use crate::crypto::classification::{self, Classification};
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 use crate::protocols::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
 
 pub struct DodHandler;
 
 impl DodHandler {
     /// Parse `dod://CLASSIFICATION@host/path` into (Classification, https URL).
-    fn parse_dod_url(url: &str) -> AftResult<(Classification, String)> {
+    fn parse_dod_url(url: &str) -> IftResult<(Classification, String)> {
         let rest = url
             .strip_prefix("dod://")
-            .ok_or_else(|| AftError::InvalidUrl("DoD URL must start with dod://".into()))?;
+            .ok_or_else(|| IftError::InvalidUrl("DoD URL must start with dod://".into()))?;
 
         // Extract classification from userinfo position
         let (class_str, host_path) = if let Some(at_pos) = rest.find('@') {
@@ -36,7 +36,7 @@ impl DodHandler {
         };
 
         let classification = Classification::parse(class_str).ok_or_else(|| {
-            AftError::InvalidUrl(format!(
+            IftError::InvalidUrl(format!(
                 "Unknown classification '{}'. Use: UNCLASSIFIED, CUI, CONFIDENTIAL, SECRET, or TOP-SECRET",
                 class_str
             ))
@@ -50,9 +50,9 @@ impl DodHandler {
     fn build_dod_opts(
         opts: &ProtocolOptions,
         classification: Classification,
-    ) -> AftResult<ProtocolOptions> {
+    ) -> IftResult<ProtocolOptions> {
         classification::validate_compliance(classification, opts.insecure)
-            .map_err(AftError::Other)?;
+            .map_err(IftError::Other)?;
 
         let mut dod_opts = opts.clone();
         dod_opts.headers.insert(
@@ -61,7 +61,7 @@ impl DodHandler {
         );
         dod_opts
             .headers
-            .insert("X-DoD-CDS".to_string(), "AFT/1.0".to_string());
+            .insert("X-DoD-CDS".to_string(), "IFT/1.0".to_string());
         // Never allow insecure for DoD transfers
         dod_opts.insecure = false;
         Ok(dod_opts)
@@ -88,7 +88,7 @@ impl ProtocolHandler for DodHandler {
         false
     }
 
-    async fn head(&self, url: &str, opts: &ProtocolOptions) -> AftResult<ResourceMetadata> {
+    async fn head(&self, url: &str, opts: &ProtocolOptions) -> IftResult<ResourceMetadata> {
         let (classification, https_url) = Self::parse_dod_url(url)?;
         classification::print_banner(classification);
         let dod_opts = Self::build_dod_opts(opts, classification)?;
@@ -104,7 +104,7 @@ impl ProtocolHandler for DodHandler {
         opts: &ProtocolOptions,
         resume_from: Option<u64>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (classification, https_url) = Self::parse_dod_url(url)?;
         classification::print_banner(classification);
         let dod_opts = Self::build_dod_opts(opts, classification)?;
@@ -121,7 +121,7 @@ impl ProtocolHandler for DodHandler {
         start: u64,
         end: u64,
         opts: &ProtocolOptions,
-    ) -> AftResult<Vec<u8>> {
+    ) -> IftResult<Vec<u8>> {
         let (classification, https_url) = Self::parse_dod_url(url)?;
         let dod_opts = Self::build_dod_opts(opts, classification)?;
 
@@ -139,7 +139,7 @@ impl ProtocolHandler for DodHandler {
         content_type: Option<&str>,
         method: Option<&str>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (classification, https_url) = Self::parse_dod_url(url)?;
         classification::print_banner(classification);
         let dod_opts = Self::build_dod_opts(opts, classification)?;
@@ -157,7 +157,7 @@ impl ProtocolHandler for DodHandler {
             .await
     }
 
-    async fn list(&self, url: &str, opts: &ProtocolOptions) -> AftResult<Vec<DirectoryEntry>> {
+    async fn list(&self, url: &str, opts: &ProtocolOptions) -> IftResult<Vec<DirectoryEntry>> {
         let (classification, https_url) = Self::parse_dod_url(url)?;
         classification::print_banner(classification);
         let dod_opts = Self::build_dod_opts(opts, classification)?;

@@ -3,8 +3,8 @@
 //! Telemetry module for anonymous usage data collection.
 //!
 //! This module provides **opt-in (disabled by default)** anonymous usage
-//! telemetry to help improve AFT. Nothing is collected or transmitted unless
-//! the user explicitly opts in with `aft telemetry opt-in`. When enabled, no
+//! telemetry to help improve IFT. Nothing is collected or transmitted unless
+//! the user explicitly opts in with `ift telemetry opt-in`. When enabled, no
 //! personal data is collected — only aggregate usage statistics such as
 //! commands used, protocol types, transfer sizes, and error types.
 //!
@@ -14,9 +14,9 @@
 //! plus `OTEL_SERVICE_NAME`; it defaults to `http/protobuf` and also supports
 //! `http/json`. The collector's auth token is read from
 //! `OTEL_EXPORTER_OTLP_HEADERS` at runtime and is never stored in the binary.
-//! Users can opt back out at any time via `aft telemetry opt-out`.
+//! Users can opt back out at any time via `ift telemetry opt-out`.
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
@@ -104,7 +104,7 @@ fn generate_uuid() -> String {
 
 impl TelemetryConfig {
     /// Get the path to the telemetry config file
-    pub fn config_path() -> AftResult<PathBuf> {
+    pub fn config_path() -> IftResult<PathBuf> {
         let config_dir = if cfg!(target_os = "windows") {
             dirs::config_dir().map(|p| p.join("aft"))
         } else {
@@ -113,17 +113,17 @@ impl TelemetryConfig {
 
         config_dir
             .map(|p| p.join("telemetry.json"))
-            .ok_or_else(|| AftError::Other("Cannot determine config directory".into()))
+            .ok_or_else(|| IftError::Other("Cannot determine config directory".into()))
     }
 
     /// Load telemetry config from disk, creating default if not exists
-    pub fn load() -> AftResult<Self> {
+    pub fn load() -> IftResult<Self> {
         let config_path = Self::config_path()?;
 
         if config_path.exists() {
             let content = fs::read_to_string(&config_path)?;
             let mut config: TelemetryConfig = serde_json::from_str(&content)
-                .map_err(|e| AftError::Other(format!("Invalid telemetry config: {}", e)))?;
+                .map_err(|e| IftError::Other(format!("Invalid telemetry config: {}", e)))?;
             // Migration to opt-in: a config written by an older opt-out build in
             // which the user never made an explicit choice
             // (`preference_changed_at` is None) must not keep telemetry on. Only
@@ -150,7 +150,7 @@ impl TelemetryConfig {
     }
 
     /// Save telemetry config to disk
-    pub fn save(&self) -> AftResult<()> {
+    pub fn save(&self) -> IftResult<()> {
         let config_path = Self::config_path()?;
 
         // Create parent directory if it doesn't exist
@@ -159,14 +159,14 @@ impl TelemetryConfig {
         }
 
         let content = serde_json::to_string_pretty(self)
-            .map_err(|e| AftError::Other(format!("Failed to serialize telemetry config: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("Failed to serialize telemetry config: {}", e)))?;
         fs::write(&config_path, content)?;
 
         Ok(())
     }
 
     /// Enable telemetry
-    pub fn opt_in(&mut self) -> AftResult<()> {
+    pub fn opt_in(&mut self) -> IftResult<()> {
         self.enabled = true;
         self.remote_enabled = true;
         self.preference_changed_at = Some(chrono::Utc::now().timestamp());
@@ -174,7 +174,7 @@ impl TelemetryConfig {
     }
 
     /// Disable telemetry
-    pub fn opt_out(&mut self) -> AftResult<()> {
+    pub fn opt_out(&mut self) -> IftResult<()> {
         self.enabled = false;
         self.remote_enabled = false;
         self.preference_changed_at = Some(chrono::Utc::now().timestamp());
@@ -182,7 +182,7 @@ impl TelemetryConfig {
     }
 
     /// Reset installation ID (generates new anonymous identifier)
-    pub fn reset_id(&mut self) -> AftResult<()> {
+    pub fn reset_id(&mut self) -> IftResult<()> {
         self.installation_id = generate_uuid();
         self.preference_changed_at = Some(chrono::Utc::now().timestamp());
         self.save()
@@ -194,14 +194,14 @@ impl TelemetryConfig {
     }
 
     /// Configure remote endpoint
-    pub fn set_endpoint(&mut self, endpoint: &str) -> AftResult<()> {
+    pub fn set_endpoint(&mut self, endpoint: &str) -> IftResult<()> {
         self.remote_endpoint = endpoint.to_string();
         self.preference_changed_at = Some(chrono::Utc::now().timestamp());
         self.save()
     }
 
     /// Configure remote API key
-    pub fn set_api_key(&mut self, api_key: Option<String>) -> AftResult<()> {
+    pub fn set_api_key(&mut self, api_key: Option<String>) -> IftResult<()> {
         self.remote_api_key = api_key;
         self.preference_changed_at = Some(chrono::Utc::now().timestamp());
         self.save()
@@ -300,7 +300,7 @@ pub struct TelemetryRecord {
     /// Human-readable timestamp (ISO 8601)
     pub timestamp_iso: String,
 
-    /// AFT version
+    /// IFT version
     pub version: String,
 }
 
@@ -432,7 +432,7 @@ fn records_to_otlp_logs(
                 ]
             },
             "scopeLogs": [{
-                "scope": { "name": "aft.telemetry", "version": version },
+                "scope": { "name": "ift.telemetry", "version": version },
                 "logRecords": log_records,
             }]
         }]
@@ -477,12 +477,12 @@ fn otlp_protocol() -> OtlpProtocol {
     }
 }
 
-/// Service name from `OTEL_SERVICE_NAME`, defaulting to `aft`.
+/// Service name from `OTEL_SERVICE_NAME`, defaulting to `ift`.
 fn otlp_service_name() -> String {
     std::env::var("OTEL_SERVICE_NAME")
         .ok()
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "aft".to_string())
+        .unwrap_or_else(|| "ift".to_string())
 }
 
 /// Resolve the logs endpoint URL.
@@ -642,7 +642,7 @@ fn records_to_otlp_protobuf(
             resource: Some(resource),
             scope_logs: vec![ScopeLogs {
                 scope: Some(InstrumentationScope {
-                    name: "aft.telemetry".to_string(),
+                    name: "ift.telemetry".to_string(),
                     version: version.to_string(),
                     ..Default::default()
                 }),
@@ -667,13 +667,13 @@ pub struct TelemetryStore {
 
 impl TelemetryStore {
     /// Create a new telemetry store
-    pub fn new() -> AftResult<Self> {
+    pub fn new() -> IftResult<Self> {
         let config = TelemetryConfig::load()?;
         Ok(Self { config })
     }
 
     /// Get path to the telemetry records file
-    pub fn records_path() -> AftResult<PathBuf> {
+    pub fn records_path() -> IftResult<PathBuf> {
         let config_dir = if cfg!(target_os = "windows") {
             dirs::config_dir().map(|p| p.join("aft"))
         } else {
@@ -682,7 +682,7 @@ impl TelemetryStore {
 
         config_dir
             .map(|p| p.join("telemetry_records.jsonl"))
-            .ok_or_else(|| AftError::Other("Cannot determine config directory".into()))
+            .ok_or_else(|| IftError::Other("Cannot determine config directory".into()))
     }
 
     /// Check if telemetry is enabled
@@ -698,9 +698,9 @@ impl TelemetryStore {
         data: HashMap<String, serde_json::Value>,
         tags: Vec<String>,
         context: Option<String>,
-    ) -> AftResult<TelemetryRecord> {
+    ) -> IftResult<TelemetryRecord> {
         if !self.is_enabled() {
-            return Err(AftError::Other("Telemetry is disabled".into()));
+            return Err(IftError::Other("Telemetry is disabled".into()));
         }
 
         let record = TelemetryRecord::new(
@@ -721,16 +721,16 @@ impl TelemetryStore {
         let mut file = OpenOptions::new().create(true).append(true).open(&path)?;
 
         let line = serde_json::to_string(&record)
-            .map_err(|e| AftError::Other(format!("Failed to serialize record: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("Failed to serialize record: {}", e)))?;
         writeln!(file, "{}", line)?;
 
         Ok(record)
     }
 
     /// Record a TelemetryEvent
-    pub fn record_event(&self, event: TelemetryEvent) -> AftResult<TelemetryRecord> {
+    pub fn record_event(&self, event: TelemetryEvent) -> IftResult<TelemetryRecord> {
         if !self.is_enabled() {
-            return Err(AftError::Other("Telemetry is disabled".into()));
+            return Err(IftError::Other("Telemetry is disabled".into()));
         }
 
         let (category, event_name, data) = match &event {
@@ -824,7 +824,7 @@ impl TelemetryStore {
         after: Option<i64>,
         before: Option<i64>,
         limit: Option<usize>,
-    ) -> AftResult<Vec<TelemetryRecord>> {
+    ) -> IftResult<Vec<TelemetryRecord>> {
         let path = Self::records_path()?;
         if !path.exists() {
             return Ok(Vec::new());
@@ -882,7 +882,7 @@ impl TelemetryStore {
     }
 
     /// Get record count
-    pub fn count_records(&self) -> AftResult<usize> {
+    pub fn count_records(&self) -> IftResult<usize> {
         let path = Self::records_path()?;
         if !path.exists() {
             return Ok(0);
@@ -894,7 +894,7 @@ impl TelemetryStore {
     }
 
     /// Clear all records
-    pub fn clear_records(&self) -> AftResult<usize> {
+    pub fn clear_records(&self) -> IftResult<usize> {
         let path = Self::records_path()?;
         if !path.exists() {
             return Ok(0);
@@ -917,10 +917,10 @@ impl TelemetryStore {
     }
 
     /// Sync records to remote endpoint (async)
-    pub async fn sync_to_remote(&self, limit: Option<usize>) -> AftResult<SyncResult> {
+    pub async fn sync_to_remote(&self, limit: Option<usize>) -> IftResult<SyncResult> {
         if !self.config.is_remote_enabled() {
-            return Err(AftError::Other(
-                "Remote telemetry is disabled. Use 'aft telemetry opt-in' to enable.".into(),
+            return Err(IftError::Other(
+                "Remote telemetry is disabled. Use 'ift telemetry opt-in' to enable.".into(),
             ));
         }
 
@@ -963,7 +963,7 @@ impl TelemetryStore {
         let mut request = client
             .post(url)
             .header("Content-Type", content_type)
-            .header("User-Agent", format!("aft/{}", env!("CARGO_PKG_VERSION")));
+            .header("User-Agent", format!("ift/{}", env!("CARGO_PKG_VERSION")));
 
         // Headers from OTEL_EXPORTER_OTLP[_LOGS]_HEADERS (auth lives here).
         for (k, v) in otlp_headers() {
@@ -1027,7 +1027,7 @@ pub struct TelemetryCollector {
 
 impl TelemetryCollector {
     /// Create a new telemetry collector
-    pub fn new() -> AftResult<Self> {
+    pub fn new() -> IftResult<Self> {
         let store = TelemetryStore::new()?;
         Ok(Self {
             store,
@@ -1105,7 +1105,7 @@ impl TelemetryCollector {
     }
 
     /// Flush pending events to disk
-    pub fn flush(&mut self) -> AftResult<()> {
+    pub fn flush(&mut self) -> IftResult<()> {
         if !self.is_enabled() || self.pending_events.is_empty() {
             return Ok(());
         }
@@ -1132,7 +1132,7 @@ impl Drop for TelemetryCollector {
 
 /// What data is collected (for user information)
 pub const TELEMETRY_INFO: &str = r#"
-AFT collects anonymous usage data to help improve the product.
+IFT collects anonymous usage data to help improve the product.
 
 WHAT WE COLLECT:
   • Commands used (e.g., 'get', 'put', 'serve')
@@ -1154,11 +1154,11 @@ Status: {status}
 Endpoint: {endpoint}
 
 Manage your preference:
-  aft telemetry opt-in   - Enable data collection
-  aft telemetry opt-out  - Disable data collection (default)
-  aft telemetry reset    - Generate new anonymous ID
-  aft telemetry status   - Show current status
-  aft telemetry sync     - Manually sync to remote
+  ift telemetry opt-in   - Enable data collection
+  ift telemetry opt-out  - Disable data collection (default)
+  ift telemetry reset    - Generate new anonymous ID
+  ift telemetry status   - Show current status
+  ift telemetry sync     - Manually sync to remote
 "#;
 
 /// Format the telemetry info text with current values
@@ -1245,7 +1245,7 @@ mod tests {
         data.insert("ok".to_string(), serde_json::json!(true));
         let rec = TelemetryRecord::new("inst-1", "usage", "put", data, vec![], None);
 
-        let body = records_to_otlp_logs("aft", "inst-1", std::slice::from_ref(&rec));
+        let body = records_to_otlp_logs("ift", "inst-1", std::slice::from_ref(&rec));
         let lr = &body["resourceLogs"][0]["scopeLogs"][0]["logRecords"][0];
 
         // int64 fields are encoded as decimal strings per OTLP/JSON.
@@ -1269,7 +1269,7 @@ mod tests {
     #[test]
     fn otlp_error_category_maps_to_error_severity() {
         let rec = TelemetryRecord::new("i", "error", "boom", HashMap::new(), vec![], None);
-        let body = records_to_otlp_logs("aft", "i", std::slice::from_ref(&rec));
+        let body = records_to_otlp_logs("ift", "i", std::slice::from_ref(&rec));
         let lr = &body["resourceLogs"][0]["scopeLogs"][0]["logRecords"][0];
         assert_eq!(lr["severityText"], "ERROR");
         assert_eq!(lr["severityNumber"], 17);

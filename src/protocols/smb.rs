@@ -6,15 +6,15 @@ use std::path::Path;
 use async_trait::async_trait;
 
 use super::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 pub struct SmbHandler;
 
 /// Parse smb://[user@]server/share[/path] → (server, share, path, user).
-fn parse_smb_url(url: &str) -> AftResult<(String, String, String, Option<String>)> {
+fn parse_smb_url(url: &str) -> IftResult<(String, String, String, Option<String>)> {
     let rest = url
         .strip_prefix("smb://")
-        .ok_or_else(|| AftError::InvalidUrl("Not an smb:// URL".into()))?;
+        .ok_or_else(|| IftError::InvalidUrl("Not an smb:// URL".into()))?;
 
     // Check for user@ prefix
     let (user, host_rest) = if let Some(at_pos) = rest.find('@') {
@@ -32,7 +32,7 @@ fn parse_smb_url(url: &str) -> AftResult<(String, String, String, Option<String>
     // Split server/share/path
     let parts: Vec<&str> = host_rest.splitn(3, '/').collect();
     if parts.is_empty() || parts[0].is_empty() {
-        return Err(AftError::InvalidUrl("SMB URL missing server name".into()));
+        return Err(IftError::InvalidUrl("SMB URL missing server name".into()));
     }
 
     let server = parts[0].to_string();
@@ -40,7 +40,7 @@ fn parse_smb_url(url: &str) -> AftResult<(String, String, String, Option<String>
     let path = parts.get(2).unwrap_or(&"").to_string();
 
     if share.is_empty() {
-        return Err(AftError::InvalidUrl("SMB URL missing share name".into()));
+        return Err(IftError::InvalidUrl("SMB URL missing share name".into()));
     }
 
     // Sanitize all components to prevent command injection via smbclient
@@ -60,13 +60,13 @@ fn parse_smb_url(url: &str) -> AftResult<(String, String, String, Option<String>
 /// Validate an SMB path component contains only safe characters.
 /// Rejects characters that could enable command injection in smbclient,
 /// including control characters, shell metacharacters, and newlines.
-fn validate_smb_component(component: &str, kind: &str) -> AftResult<()> {
+fn validate_smb_component(component: &str, kind: &str) -> IftResult<()> {
     if component.is_empty() {
-        return Err(AftError::InvalidUrl(format!("SMB {} is empty", kind)));
+        return Err(IftError::InvalidUrl(format!("SMB {} is empty", kind)));
     }
     // Prevent path traversal
     if component == ".." || component == "." {
-        return Err(AftError::InvalidUrl(format!(
+        return Err(IftError::InvalidUrl(format!(
             "SMB {} cannot be '.' or '..'",
             kind
         )));
@@ -74,13 +74,13 @@ fn validate_smb_component(component: &str, kind: &str) -> AftResult<()> {
     // Single-pass: reject control characters and unsafe shell metacharacters
     for ch in component.chars() {
         if ch.is_control() || ('\u{0080}'..='\u{009F}').contains(&ch) {
-            return Err(AftError::InvalidUrl(format!(
+            return Err(IftError::InvalidUrl(format!(
                 "SMB {} contains control character U+{:04X}. Control characters are not allowed.",
                 kind, ch as u32
             )));
         }
         if !matches!(ch, 'a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-' | '_' | ' ') {
-            return Err(AftError::InvalidUrl(format!(
+            return Err(IftError::InvalidUrl(format!(
                 "SMB {} contains unsafe character '{}'. Only alphanumerics, dots, hyphens, underscores, and spaces are allowed.",
                 kind, ch
             )));
@@ -134,7 +134,7 @@ impl ProtocolHandler for SmbHandler {
         false
     }
 
-    async fn head(&self, url: &str, opts: &ProtocolOptions) -> AftResult<ResourceMetadata> {
+    async fn head(&self, url: &str, opts: &ProtocolOptions) -> IftResult<ResourceMetadata> {
         let (server, share, path, _user) = parse_smb_url(url)?;
         let unc = to_unc_path(&server, &share, &path);
 
@@ -143,7 +143,7 @@ impl ProtocolHandler for SmbHandler {
         }
 
         let metadata = tokio::fs::metadata(&unc).await.map_err(|e| {
-            AftError::ConnectionFailed(format!("SMB access failed for {}: {}", unc, e))
+            IftError::ConnectionFailed(format!("SMB access failed for {}: {}", unc, e))
         })?;
 
         let modified = metadata
@@ -183,7 +183,7 @@ impl ProtocolHandler for SmbHandler {
         opts: &ProtocolOptions,
         _resume_from: Option<u64>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (server, share, path, _user) = parse_smb_url(url)?;
         let unc = to_unc_path(&server, &share, &path);
 
@@ -194,17 +194,17 @@ impl ProtocolHandler for SmbHandler {
         // Direct file copy via UNC path
         let metadata = tokio::fs::metadata(&unc)
             .await
-            .map_err(|e| AftError::FileNotFound(format!("SMB file not found: {}: {}", unc, e)))?;
+            .map_err(|e| IftError::FileNotFound(format!("SMB file not found: {}: {}", unc, e)))?;
 
         if !metadata.is_file() {
-            return Err(AftError::Other(format!("{} is not a file", unc)));
+            return Err(IftError::Other(format!("{} is not a file", unc)));
         }
 
         let file_size = metadata.len();
 
         tokio::fs::copy(&unc, dest)
             .await
-            .map_err(|e| AftError::TransferFailed(format!("SMB copy failed: {}", e)))?;
+            .map_err(|e| IftError::TransferFailed(format!("SMB copy failed: {}", e)))?;
 
         if let Some(ref cb) = progress {
             cb(file_size, Some(file_size));
@@ -219,8 +219,8 @@ impl ProtocolHandler for SmbHandler {
         _start: u64,
         _end: u64,
         _opts: &ProtocolOptions,
-    ) -> AftResult<Vec<u8>> {
-        Err(AftError::Other(
+    ) -> IftResult<Vec<u8>> {
+        Err(IftError::Other(
             "SMB does not support range downloads".into(),
         ))
     }
@@ -233,12 +233,12 @@ impl ProtocolHandler for SmbHandler {
         _content_type: Option<&str>,
         _method: Option<&str>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (server, share, path, _user) = parse_smb_url(url)?;
         let unc = to_unc_path(&server, &share, &path);
 
         if !source.exists() {
-            return Err(AftError::FileNotFound(format!(
+            return Err(IftError::FileNotFound(format!(
                 "Source file not found: {:?}",
                 source
             )));
@@ -257,7 +257,7 @@ impl ProtocolHandler for SmbHandler {
         if unc_accessible {
             tokio::fs::copy(source, &unc)
                 .await
-                .map_err(|e| AftError::TransferFailed(format!("SMB upload failed: {}", e)))?;
+                .map_err(|e| IftError::TransferFailed(format!("SMB upload failed: {}", e)))?;
         } else {
             return smbclient_upload(source, &server, &share, &path, opts).await;
         }
@@ -269,7 +269,7 @@ impl ProtocolHandler for SmbHandler {
         Ok(file_size)
     }
 
-    async fn list(&self, url: &str, opts: &ProtocolOptions) -> AftResult<Vec<DirectoryEntry>> {
+    async fn list(&self, url: &str, opts: &ProtocolOptions) -> IftResult<Vec<DirectoryEntry>> {
         let (server, share, path, _user) = parse_smb_url(url)?;
         let unc = to_unc_path(&server, &share, &path);
 
@@ -280,7 +280,7 @@ impl ProtocolHandler for SmbHandler {
         let mut entries = Vec::new();
         let mut dir = tokio::fs::read_dir(&unc)
             .await
-            .map_err(|e| AftError::Other(format!("SMB list failed for {}: {}", unc, e)))?;
+            .map_err(|e| IftError::Other(format!("SMB list failed for {}: {}", unc, e)))?;
 
         while let Some(entry) = dir.next_entry().await? {
             let meta = entry.metadata().await?;
@@ -321,7 +321,7 @@ async fn attempt_smbclient_head(
     share: &str,
     path: &str,
     _opts: &ProtocolOptions,
-) -> AftError {
+) -> IftError {
     // Check if smbclient is available
     let check = tokio::process::Command::new("smbclient")
         .arg("--version")
@@ -329,14 +329,14 @@ async fn attempt_smbclient_head(
         .await;
 
     if check.is_err() {
-        return AftError::ConnectionFailed(format!(
+        return IftError::ConnectionFailed(format!(
             "Cannot access SMB share //{}/{}/{}: share is not mounted and 'smbclient' is not available. \
              On Windows, ensure the share is accessible. On Linux/macOS, install samba-client or mount the share.",
             server, share, path
         ));
     }
 
-    AftError::ConnectionFailed(format!(
+    IftError::ConnectionFailed(format!(
         "SMB share //{}/{}/ is not mounted. Mount it first or ensure network access.",
         server, share
     ))
@@ -348,7 +348,7 @@ async fn smbclient_download(
     path: &str,
     dest: &Path,
     _opts: &ProtocolOptions,
-) -> AftResult<u64> {
+) -> IftResult<u64> {
     let smb_path = format!("//{}/{}", server, share);
     let remote_file = if path.starts_with('/') {
         path.to_string()
@@ -367,7 +367,7 @@ async fn smbclient_download(
         .output()
         .await
         .map_err(|e| {
-            AftError::ConnectionFailed(format!(
+            IftError::ConnectionFailed(format!(
                 "smbclient not available or failed: {}. Install samba-client or mount the share.",
                 e
             ))
@@ -375,7 +375,7 @@ async fn smbclient_download(
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(AftError::TransferFailed(format!(
+        return Err(IftError::TransferFailed(format!(
             "smbclient download failed: {}",
             stderr.trim()
         )));
@@ -391,7 +391,7 @@ async fn smbclient_upload(
     share: &str,
     path: &str,
     _opts: &ProtocolOptions,
-) -> AftResult<u64> {
+) -> IftResult<u64> {
     let smb_path = format!("//{}/{}", server, share);
     let remote_file = if path.starts_with('/') {
         path.to_string()
@@ -408,11 +408,11 @@ async fn smbclient_upload(
         .arg(&cmd)
         .output()
         .await
-        .map_err(|e| AftError::ConnectionFailed(format!("smbclient not available: {}", e)))?;
+        .map_err(|e| IftError::ConnectionFailed(format!("smbclient not available: {}", e)))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(AftError::TransferFailed(format!(
+        return Err(IftError::TransferFailed(format!(
             "smbclient upload failed: {}",
             stderr.trim()
         )));
@@ -427,7 +427,7 @@ async fn smbclient_list(
     share: &str,
     path: &str,
     _opts: &ProtocolOptions,
-) -> AftResult<Vec<DirectoryEntry>> {
+) -> IftResult<Vec<DirectoryEntry>> {
     let smb_path = format!("//{}/{}", server, share);
     let dir_path = if path.is_empty() || path == "/" {
         "/".to_string()
@@ -445,11 +445,11 @@ async fn smbclient_list(
         .arg(&cmd)
         .output()
         .await
-        .map_err(|e| AftError::ConnectionFailed(format!("smbclient not available: {}", e)))?;
+        .map_err(|e| IftError::ConnectionFailed(format!("smbclient not available: {}", e)))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "smbclient list failed: {}",
             stderr.trim()
         )));

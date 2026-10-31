@@ -20,7 +20,7 @@ use std::net::SocketAddr;
 
 use tokio::net::UdpSocket;
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 use super::envelope::{Envelope, DEFAULT_MTU};
 
@@ -44,10 +44,10 @@ pub struct DataPlane {
 impl DataPlane {
     /// Bind a data-plane socket. Pass port 0 to let the OS choose, then read
     /// it back with [`local_addr`](Self::local_addr) to put in the accept.
-    pub async fn bind(addr: &str, key: Option<Vec<u8>>) -> AftResult<Self> {
+    pub async fn bind(addr: &str, key: Option<Vec<u8>>) -> IftResult<Self> {
         let socket = UdpSocket::bind(addr)
             .await
-            .map_err(|e| AftError::Other(format!("FEC UDP bind {}: {}", addr, e)))?;
+            .map_err(|e| IftError::Other(format!("FEC UDP bind {}: {}", addr, e)))?;
         tune_udp_socket(&socket);
         Ok(Self {
             socket,
@@ -62,7 +62,7 @@ impl DataPlane {
         addr: &str,
         key: Option<Vec<u8>>,
         session_id: u64,
-    ) -> AftResult<Self> {
+    ) -> IftResult<Self> {
         let mut plane = Self::bind(addr, key).await?;
         plane.session_id = session_id;
         Ok(plane)
@@ -76,10 +76,10 @@ impl DataPlane {
         self.session_id = session_id;
     }
 
-    pub fn local_addr(&self) -> AftResult<SocketAddr> {
+    pub fn local_addr(&self) -> IftResult<SocketAddr> {
         self.socket
             .local_addr()
-            .map_err(|e| AftError::Other(format!("FEC UDP local_addr: {}", e)))
+            .map_err(|e| IftError::Other(format!("FEC UDP local_addr: {}", e)))
     }
 
     pub fn mtu(&self) -> u16 {
@@ -92,21 +92,21 @@ impl DataPlane {
 
     /// Pin the socket to one peer so later sends need no address and stray
     /// datagrams from other hosts are filtered by the kernel.
-    pub async fn connect(&self, peer: SocketAddr) -> AftResult<()> {
+    pub async fn connect(&self, peer: SocketAddr) -> IftResult<()> {
         self.socket
             .connect(peer)
             .await
-            .map_err(|e| AftError::Other(format!("FEC UDP connect {}: {}", peer, e)))
+            .map_err(|e| IftError::Other(format!("FEC UDP connect {}: {}", peer, e)))
     }
 
     /// Send one symbol to the connected peer.
-    pub async fn send(&self, block_id: u32, session_id: u64, symbol: &[u8]) -> AftResult<usize> {
+    pub async fn send(&self, block_id: u32, session_id: u64, symbol: &[u8]) -> IftResult<usize> {
         let wire =
             Envelope::new(session_id, block_id, symbol.to_vec()).encode(self.key.as_deref())?;
         self.socket
             .send(&wire)
             .await
-            .map_err(|e| AftError::Other(format!("FEC UDP send: {}", e)))
+            .map_err(|e| IftError::Other(format!("FEC UDP send: {}", e)))
     }
 
     /// Send one symbol to an explicit address (before `connect`).
@@ -116,13 +116,13 @@ impl DataPlane {
         block_id: u32,
         session_id: u64,
         symbol: &[u8],
-    ) -> AftResult<usize> {
+    ) -> IftResult<usize> {
         let wire =
             Envelope::new(session_id, block_id, symbol.to_vec()).encode(self.key.as_deref())?;
         self.socket
             .send_to(&wire, peer)
             .await
-            .map_err(|e| AftError::Other(format!("FEC UDP send_to {}: {}", peer, e)))
+            .map_err(|e| IftError::Other(format!("FEC UDP send_to {}: {}", peer, e)))
     }
 
     /// Receive and verify one symbol.
@@ -132,13 +132,13 @@ impl DataPlane {
     /// noisy network, junk arriving on the socket is expected, and a receiver
     /// that aborted on the first bad datagram would be trivially deniable.
     /// Genuine socket failures still surface as `Err`.
-    pub async fn recv(&self, expect_session: u64) -> AftResult<Option<(u32, Vec<u8>, SocketAddr)>> {
+    pub async fn recv(&self, expect_session: u64) -> IftResult<Option<(u32, Vec<u8>, SocketAddr)>> {
         let mut buf = vec![0u8; RECV_BUF];
         let (n, from) = self
             .socket
             .recv_from(&mut buf)
             .await
-            .map_err(|e| AftError::Other(format!("FEC UDP recv: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("FEC UDP recv: {}", e)))?;
         buf.truncate(n);
 
         match Envelope::decode(&buf, self.key.as_deref()) {

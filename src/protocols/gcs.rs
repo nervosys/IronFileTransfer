@@ -8,15 +8,15 @@ use reqwest::Client;
 use tokio::io::AsyncWriteExt;
 
 use super::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 pub struct GcsHandler;
 
 /// Parse gs://bucket/object → (bucket, object).
-fn parse_gcs_url(url: &str) -> AftResult<(String, String)> {
+fn parse_gcs_url(url: &str) -> IftResult<(String, String)> {
     let rest = url
         .strip_prefix("gs://")
-        .ok_or_else(|| AftError::InvalidUrl("Not a gs:// URL".into()))?;
+        .ok_or_else(|| IftError::InvalidUrl("Not a gs:// URL".into()))?;
 
     let (bucket, object) = match rest.find('/') {
         Some(i) => (rest[..i].to_string(), rest[i + 1..].to_string()),
@@ -24,7 +24,7 @@ fn parse_gcs_url(url: &str) -> AftResult<(String, String)> {
     };
 
     if bucket.is_empty() {
-        return Err(AftError::InvalidUrl("GCS URL missing bucket name".into()));
+        return Err(IftError::InvalidUrl("GCS URL missing bucket name".into()));
     }
 
     Ok((bucket, object))
@@ -43,7 +43,7 @@ fn get_gcs_auth(opts: &ProtocolOptions) -> Option<String> {
     None
 }
 
-fn build_client(opts: &ProtocolOptions) -> AftResult<Client> {
+fn build_client(opts: &ProtocolOptions) -> IftResult<Client> {
     let mut builder = Client::builder().danger_accept_invalid_certs(opts.insecure);
 
     if opts.connect_timeout_secs > 0 {
@@ -56,12 +56,12 @@ fn build_client(opts: &ProtocolOptions) -> AftResult<Client> {
     builder = builder.user_agent(
         opts.user_agent
             .as_deref()
-            .unwrap_or(&format!("aft/{}", env!("CARGO_PKG_VERSION"))),
+            .unwrap_or(&format!("ift/{}", env!("CARGO_PKG_VERSION"))),
     );
 
     builder
         .build()
-        .map_err(|e| AftError::ConnectionFailed(e.to_string()))
+        .map_err(|e| IftError::ConnectionFailed(e.to_string()))
 }
 
 fn apply_auth(req: reqwest::RequestBuilder, opts: &ProtocolOptions) -> reqwest::RequestBuilder {
@@ -90,7 +90,7 @@ impl ProtocolHandler for GcsHandler {
         true
     }
 
-    async fn head(&self, url: &str, opts: &ProtocolOptions) -> AftResult<ResourceMetadata> {
+    async fn head(&self, url: &str, opts: &ProtocolOptions) -> IftResult<ResourceMetadata> {
         let (bucket, object) = parse_gcs_url(url)?;
         let client = build_client(opts)?;
 
@@ -104,7 +104,7 @@ impl ProtocolHandler for GcsHandler {
         let resp = req.send().await?;
 
         if !resp.status().is_success() {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: format!("GCS metadata failed: {}", resp.status()),
             });
@@ -113,7 +113,7 @@ impl ProtocolHandler for GcsHandler {
         let body: serde_json::Value = resp
             .json()
             .await
-            .map_err(|e| AftError::Other(format!("GCS metadata parse: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("GCS metadata parse: {}", e)))?;
 
         let content_length = body
             .get("size")
@@ -152,7 +152,7 @@ impl ProtocolHandler for GcsHandler {
         opts: &ProtocolOptions,
         resume_from: Option<u64>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (bucket, object) = parse_gcs_url(url)?;
         let client = build_client(opts)?;
 
@@ -173,7 +173,7 @@ impl ProtocolHandler for GcsHandler {
 
         let resp = req.send().await?;
         if !resp.status().is_success() && resp.status() != reqwest::StatusCode::PARTIAL_CONTENT {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: format!("GCS GET failed: {}", resp.status()),
             });
@@ -196,7 +196,7 @@ impl ProtocolHandler for GcsHandler {
 
         use futures::StreamExt;
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| AftError::TransferFailed(e.to_string()))?;
+            let chunk = chunk.map_err(|e| IftError::TransferFailed(e.to_string()))?;
             file.write_all(&chunk).await?;
             downloaded += chunk.len() as u64;
             if let Some(ref cb) = progress {
@@ -214,7 +214,7 @@ impl ProtocolHandler for GcsHandler {
         start: u64,
         end: u64,
         opts: &ProtocolOptions,
-    ) -> AftResult<Vec<u8>> {
+    ) -> IftResult<Vec<u8>> {
         let (bucket, object) = parse_gcs_url(url)?;
         let client = build_client(opts)?;
 
@@ -229,7 +229,7 @@ impl ProtocolHandler for GcsHandler {
 
         let resp = req.send().await?;
         if !resp.status().is_success() && resp.status() != reqwest::StatusCode::PARTIAL_CONTENT {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: format!("GCS GET range failed: {}", resp.status()),
             });
@@ -238,7 +238,7 @@ impl ProtocolHandler for GcsHandler {
         let bytes = resp
             .bytes()
             .await
-            .map_err(|e| AftError::TransferFailed(e.to_string()))?;
+            .map_err(|e| IftError::TransferFailed(e.to_string()))?;
         Ok(bytes.to_vec())
     }
 
@@ -250,7 +250,7 @@ impl ProtocolHandler for GcsHandler {
         content_type: Option<&str>,
         _method: Option<&str>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (bucket, object) = parse_gcs_url(url)?;
         let client = build_client(opts)?;
 
@@ -272,7 +272,7 @@ impl ProtocolHandler for GcsHandler {
 
         let resp = req.send().await?;
         if !resp.status().is_success() {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: format!("GCS upload failed: {}", resp.status()),
             });
@@ -285,7 +285,7 @@ impl ProtocolHandler for GcsHandler {
         Ok(file_size)
     }
 
-    async fn list(&self, url: &str, opts: &ProtocolOptions) -> AftResult<Vec<DirectoryEntry>> {
+    async fn list(&self, url: &str, opts: &ProtocolOptions) -> IftResult<Vec<DirectoryEntry>> {
         let (bucket, prefix) = parse_gcs_url(url)?;
         let client = build_client(opts)?;
 
@@ -301,7 +301,7 @@ impl ProtocolHandler for GcsHandler {
         let resp = req.send().await?;
 
         if !resp.status().is_success() {
-            return Err(AftError::HttpStatus {
+            return Err(IftError::HttpStatus {
                 status: resp.status().as_u16(),
                 message: format!("GCS list failed: {}", resp.status()),
             });
@@ -310,7 +310,7 @@ impl ProtocolHandler for GcsHandler {
         let body: serde_json::Value = resp
             .json()
             .await
-            .map_err(|e| AftError::Other(format!("GCS list parse: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("GCS list parse: {}", e)))?;
 
         let mut entries = Vec::new();
 

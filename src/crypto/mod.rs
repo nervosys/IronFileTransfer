@@ -1,6 +1,6 @@
 // Copyright (c) 2024-2026 Nervosys LLC
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Cryptographic subsystem for AFT.
+//! Cryptographic subsystem for IFT.
 //!
 //! Provides three encryption methods:
 //!
@@ -29,7 +29,7 @@ pub mod primitives;
 
 use std::path::Path;
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 /// XOR `data` with `key` (repeated), processing in u64 chunks for throughput.
 /// Falls back to byte-at-a-time for the remainder and short keys.
@@ -111,7 +111,7 @@ impl EncryptionMethod {
     }
 }
 
-/// Magic bytes for AFT encrypted files.
+/// Magic bytes for IFT encrypted files.
 const ENCRYPTED_MAGIC: &[u8; 4] = b"AFTE";
 /// Current encrypted file format version.
 const ENCRYPTED_VERSION: u8 = 1;
@@ -120,14 +120,14 @@ const HEADER_SIZE: usize = 20;
 
 /// Encrypt a file on disk.
 ///
-/// The output file uses the AFT encrypted format:
+/// The output file uses the IFT encrypted format:
 /// `AFTE || version || method || reserved || original_len || kem_ct_len || kem_ct || encrypted_data`
 pub async fn encrypt_file(
     input: &Path,
     output: &Path,
     method: EncryptionMethod,
     key_file: &Path,
-) -> AftResult<u64> {
+) -> IftResult<u64> {
     let plaintext = tokio::fs::read(input).await?;
     let original_len = plaintext.len() as u64;
 
@@ -145,7 +145,7 @@ pub async fn encrypt_file(
             let seed = u64::from_le_bytes(
                 derived[..8]
                     .try_into()
-                    .map_err(|_| AftError::CryptoError("Seed derivation failed".into()))?,
+                    .map_err(|_| IftError::CryptoError("Seed derivation failed".into()))?,
             );
             let cipher = neural::NeuralCipher::train(&neural::TrainConfig {
                 epochs: 100,
@@ -175,38 +175,38 @@ pub async fn encrypt_file(
     Ok(out_data.len() as u64)
 }
 
-/// Decrypt an AFT encrypted file.
+/// Decrypt an IFT encrypted file.
 ///
 /// The encryption method is detected automatically from the file header.
-pub async fn decrypt_file(input: &Path, output: &Path, key_file: &Path) -> AftResult<u64> {
+pub async fn decrypt_file(input: &Path, output: &Path, key_file: &Path) -> IftResult<u64> {
     let data = tokio::fs::read(input).await?;
 
     if data.len() < HEADER_SIZE {
-        return Err(AftError::Other(
+        return Err(IftError::Other(
             "File too short for encrypted header".into(),
         ));
     }
     if &data[..4] != ENCRYPTED_MAGIC {
-        return Err(AftError::Other(
-            "Not an AFT encrypted file (missing AFTE magic)".into(),
+        return Err(IftError::Other(
+            "Not an IFT encrypted file (missing AFTE magic)".into(),
         ));
     }
     if data[4] != ENCRYPTED_VERSION {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "Unsupported encrypted file version: {}",
             data[4]
         )));
     }
 
     let method = EncryptionMethod::from_byte(data[5])
-        .ok_or_else(|| AftError::CryptoError(format!("Unknown encryption method: {}", data[5])))?;
+        .ok_or_else(|| IftError::CryptoError(format!("Unknown encryption method: {}", data[5])))?;
     let original_len = u64::from_le_bytes([
         data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15],
     ]);
     // Sanity-check: reject files claiming implausible original sizes (> 1 TiB)
     const MAX_ORIGINAL_SIZE: u64 = 1 << 40;
     if original_len > MAX_ORIGINAL_SIZE {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "Encrypted file claims original size {} bytes, exceeding limit",
             original_len
         )));
@@ -215,7 +215,7 @@ pub async fn decrypt_file(input: &Path, output: &Path, key_file: &Path) -> AftRe
 
     let kem_ct_end = HEADER_SIZE + kem_ct_len;
     if data.len() < kem_ct_end {
-        return Err(AftError::CryptoError(
+        return Err(IftError::CryptoError(
             "File truncated (KEM ciphertext)".into(),
         ));
     }
@@ -232,7 +232,7 @@ pub async fn decrypt_file(input: &Path, output: &Path, key_file: &Path) -> AftRe
             let seed = u64::from_le_bytes(
                 derived[..8]
                     .try_into()
-                    .map_err(|_| AftError::CryptoError("Seed derivation failed".into()))?,
+                    .map_err(|_| IftError::CryptoError("Seed derivation failed".into()))?,
             );
             let cipher = neural::NeuralCipher::train(&neural::TrainConfig {
                 epochs: 100,

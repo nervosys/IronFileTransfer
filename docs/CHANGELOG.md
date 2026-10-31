@@ -1,11 +1,17 @@
 # Changelog
 
-All notable changes to AFT will be documented in this file.
+All notable changes to IFT will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [3.0.0] - 2026-10-31
+
+### Breaking
+
+- **Renamed to IronFileTransfer.** The binary, crates, packages and release artifacts are now `ift` instead of `aft`, and type prefixes and tool names follow. The AFTP protocol and the `aftp://` scheme are unchanged. Scripts, install commands and dependencies that use the old name must be updated. Configuration and data paths, environment variables, and on-disk and wire formats keep their `aft` names, so existing setups continue to work.
 
 ### Changed
 

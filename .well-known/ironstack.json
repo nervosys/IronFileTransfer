@@ -1,14 +1,14 @@
 {
   "ironstack": "1",
-  "id": "aft",
-  "product": "AgenticFileTransfer",
+  "id": "ift",
+  "product": "IronFileTransfer",
   "layer": "tools",
   "role": "Protocol-agnostic high-performance file transfer with structured output.",
   "surfaces": [
     "cli"
   ],
   "ontology": {
-    "command": "aft schema",
+    "command": "ift schema",
     "document": "src/ontology.rs (JSON-LD)",
     "schema": 1
   },
@@ -158,5 +158,5 @@
       ]
     }
   ],
-  "note": "requires_grant is now DERIVED from the effects aft declares per operation -- mutates, destroys, network, loads_code -- and is true where an operation writes or loads code. An earlier version of this file said both fields were judgement, which was true when written; the tool now declares them. The ontology also covers all sixteen commands. It covered eleven, and the five it omitted included rm and mv, so an agent reading it as complete would have concluded aft cannot delete anything. Two tests now walk clap's parsed Command in both directions -- which immediately caught that the operations were named `move` and `remove` while the commands are `mv` and `rm`, an entry that would have looked correct and matched nothing. destroys is kept separate from mutates on purpose: writing a file and deleting one are both mutations, but only the second loses data the caller did not create. sync declares destroys because reconciling a tree removes entries absent from the source. loads_code is declared only by plugin, and is why plugin requires a grant despite touching no file the caller named -- it is the one operation that puts new executable code into the process. Budgets are judged and mark the operations whose cost scales with bytes moved or time served."
+  "note": "requires_grant is now DERIVED from the effects ift declares per operation -- mutates, destroys, network, loads_code -- and is true where an operation writes or loads code. An earlier version of this file said both fields were judgement, which was true when written; the tool now declares them. The ontology also covers all sixteen commands. It covered eleven, and the five it omitted included rm and mv, so an agent reading it as complete would have concluded ift cannot delete anything. Two tests now walk clap's parsed Command in both directions -- which immediately caught that the operations were named `move` and `remove` while the commands are `mv` and `rm`, an entry that would have looked correct and matched nothing. destroys is kept separate from mutates on purpose: writing a file and deleting one are both mutations, but only the second loses data the caller did not create. sync declares destroys because reconciling a tree removes entries absent from the source. loads_code is declared only by plugin, and is why plugin requires a grant despite touching no file the caller named -- it is the one operation that puts new executable code into the process. Budgets are judged and mark the operations whose cost scales with bytes moved or time served."
 }

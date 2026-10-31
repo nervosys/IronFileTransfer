@@ -1,6 +1,6 @@
 // Copyright (c) 2024-2026 Nervosys LLC
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! # AFT — Agentic File Transfer
+//! # IFT — Iron File Transfer
 //!
 //! A high-performance, protocol-agnostic file transfer library designed
 //! for both human operators and AI agents. Supports HTTP/HTTPS, FTP, SFTP,
@@ -13,8 +13,8 @@
 //! # Quick Start
 //!
 //! ```no_run
-//! use aft::engine::{TransferConfig, download};
-//! use aft::protocols::{resolve_protocol, ProtocolOptions};
+//! use ift::engine::{TransferConfig, download};
+//! use ift::protocols::{resolve_protocol, ProtocolOptions};
 //! ```
 
 pub mod aftp;
@@ -44,5 +44,5 @@ pub mod telemetry;
 
 // Convenience re-exports
 pub use engine::{TransferConfig, TransferResult};
-pub use error::{AftError, AftResult};
+pub use error::{IftError, IftResult};
 pub use protocols::{ProtocolHandler, ProtocolOptions};

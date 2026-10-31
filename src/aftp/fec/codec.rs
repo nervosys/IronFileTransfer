@@ -32,7 +32,7 @@
 
 use raptorq::{Decoder, Encoder, EncodingPacket, ObjectTransmissionInformation};
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 /// Default block size. Large enough to amortize per-block feedback, small
 /// enough that the decoder's working set stays modest and a block commits (and
@@ -65,16 +65,16 @@ pub fn block_range(block_id: u32, block_size: usize, total_len: u64) -> (u64, u6
 ///
 /// Fails rather than silently splitting into multiple source blocks if the
 /// caller asks for a block/symbol combination that exceeds the RFC limit.
-pub fn oti_for_block(len: usize, symbol_size: u16) -> AftResult<ObjectTransmissionInformation> {
+pub fn oti_for_block(len: usize, symbol_size: u16) -> IftResult<ObjectTransmissionInformation> {
     if symbol_size == 0 {
-        return Err(AftError::Other("FEC symbol size must be non-zero".into()));
+        return Err(IftError::Other("FEC symbol size must be non-zero".into()));
     }
     if len == 0 {
-        return Err(AftError::Other("FEC block must be non-empty".into()));
+        return Err(IftError::Other("FEC block must be non-empty".into()));
     }
     let symbols = (len as u64).div_ceil(symbol_size as u64);
     if symbols > MAX_SOURCE_SYMBOLS_PER_BLOCK {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "FEC block of {} bytes needs {} symbols of {} bytes, over the RFC 6330 limit of {}",
             len, symbols, symbol_size, MAX_SOURCE_SYMBOLS_PER_BLOCK
         )));
@@ -100,7 +100,7 @@ pub struct BlockEncoder {
 impl BlockEncoder {
     /// Encode `data` as one block. `symbol_size` must match what the receiver
     /// was told in the offer.
-    pub fn new(data: &[u8], symbol_size: u16) -> AftResult<Self> {
+    pub fn new(data: &[u8], symbol_size: u16) -> IftResult<Self> {
         let config = oti_for_block(data.len(), symbol_size)?;
         let inner = Encoder::new(data, config);
         let source_symbol_count = (data.len() as u64).div_ceil(symbol_size as u64) as u32;
@@ -167,17 +167,17 @@ impl BlockDecoder {
     ///
     /// `expected_len` is the block length the control plane promised; a decoded
     /// block of any other length is rejected.
-    pub fn new(oti: &Oti, expected_len: usize) -> AftResult<Self> {
+    pub fn new(oti: &Oti, expected_len: usize) -> IftResult<Self> {
         let config = ObjectTransmissionInformation::deserialize(oti);
         if config.transfer_length() != expected_len as u64 {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "FEC OTI transfer length {} disagrees with expected block length {}",
                 config.transfer_length(),
                 expected_len
             )));
         }
         if config.symbol_size() == 0 {
-            return Err(AftError::Other("FEC OTI has zero symbol size".into()));
+            return Err(IftError::Other("FEC OTI has zero symbol size".into()));
         }
         Ok(Self {
             inner: Decoder::new(config),
@@ -191,14 +191,14 @@ impl BlockDecoder {
     ///
     /// Returns `Ok(true)` once the block is complete. Extra symbols after
     /// completion are ignored, so a receiver need not race to stop the sender.
-    pub fn push(&mut self, payload: &[u8]) -> AftResult<bool> {
+    pub fn push(&mut self, payload: &[u8]) -> IftResult<bool> {
         if self.result.is_some() {
             return Ok(true);
         }
         // A serialized packet is a 4-byte PayloadId plus at least one byte of
         // symbol; `EncodingPacket::deserialize` would panic on anything shorter.
         if payload.len() <= 4 {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "FEC symbol too short: {} bytes",
                 payload.len()
             )));
@@ -206,7 +206,7 @@ impl BlockDecoder {
         self.accepted += 1;
         if let Some(data) = self.inner.decode(EncodingPacket::deserialize(payload)) {
             if data.len() != self.expected_len {
-                return Err(AftError::Other(format!(
+                return Err(IftError::Other(format!(
                     "FEC decoded block is {} bytes, expected {}",
                     data.len(),
                     self.expected_len

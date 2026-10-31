@@ -10,18 +10,18 @@ const content = `
 ## Install from Source
 
 \`\`\`bash
-git clone https://github.com/nervosys/AgenticFileTransfer.git
-cd AgenticFileTransfer
+git clone https://github.com/nervosys/IronFileTransfer.git
+cd IronFileTransfer
 cargo install --path .
 \`\`\`
 
-The \`aft\` binary is now available in your \`$PATH\`.
+The \`ift\` binary is now available in your \`$PATH\`.
 
 ## Build from Source
 
 \`\`\`bash
 cargo build --release
-# Binary at target/release/aft (or aft.exe on Windows)
+# Binary at target/release/ift (or ift.exe on Windows)
 \`\`\`
 
 ### FIPS 140-3 Build
@@ -41,10 +41,10 @@ The release binary is optimized with LTO, single codegen unit, stripped symbols,
 ## Verify Installation
 
 \`\`\`bash
-aft --version
-# aft 1.3.0
+ift --version
+# ift 1.3.0
 
-aft --help
+ift --help
 \`\`\`
 
 ## Your First Transfer
@@ -52,45 +52,45 @@ aft --help
 ### Download a file
 
 \`\`\`bash
-aft get https://example.com/data.tar.gz
+ift get https://example.com/data.tar.gz
 \`\`\`
 
 ### Upload a file
 
 \`\`\`bash
-aft put ./report.pdf https://upload.example.com/files/
+ift put ./report.pdf https://upload.example.com/files/
 \`\`\`
 
 ### Copy locally
 
 \`\`\`bash
-aft copy ./src/ ./backup/src/ -r
+ift copy ./src/ ./backup/src/ -r
 \`\`\`
 
 ### Compute a checksum
 
 \`\`\`bash
-aft checksum ./file.tar.gz --algorithm sha256
+ift checksum ./file.tar.gz --algorithm sha256
 \`\`\`
 
 ## Agent Mode
 
-AFT is designed for AI agent integration. Use \`--agent\` for structured JSON output with no interactive elements:
+IFT is designed for AI agent integration. Use \`--agent\` for structured JSON output with no interactive elements:
 
 \`\`\`bash
 # Structured JSON output
-aft --agent get https://example.com/data.json -o /tmp/data.json
+ift --agent get https://example.com/data.json -o /tmp/data.json
 
 # Discover capabilities programmatically
-aft --agent capabilities
+ift --agent capabilities
 
 # Full ontology schema for tool registration
-aft --agent schema
+ift --agent schema
 \`\`\`
 
 ## Configuration
 
-AFT stores configuration and data in \`~/.aft/\`:
+IFT stores configuration and data in \`~/.aft/\`:
 
 | File | Purpose |
 |------|---------|
@@ -99,14 +99,14 @@ AFT stores configuration and data in \`~/.aft/\`:
 | \`audit.log\` | Security audit trail (JSON Lines) |
 | \`plugins/\` | Custom protocol handler shared libraries |
 
-All files are created lazily — \`~/.aft/\` is only populated when needed. AFT requires no configuration to operate; every option can be passed as a CLI flag.
+All files are created lazily — \`~/.aft/\` is only populated when needed. IFT requires no configuration to operate; every option can be passed as a CLI flag.
 
 ## Turbo Mode
 
 Enable the high-performance turbo transfer engine with a single flag:
 
 \`\`\`bash
-aft get aftp://server:2600/payload.bin --turbo
+ift get aftp://server:2600/payload.bin --turbo
 \`\`\`
 
 Turbo mode automatically probes link characteristics (RTT, bandwidth, BDP) and selects the optimal transfer strategy — multi-stream, memory-mapped I/O, or standard — with up to 128 parallel streams and 16 MiB socket buffers.
@@ -117,13 +117,13 @@ Generate a key pair and encrypt files with NIST FIPS 203 ML-KEM (Kyber1024):
 
 \`\`\`bash
 # Generate keys
-aft crypto keygen -o ./keys/
+ift crypto keygen -o ./keys/
 
 # Encrypt
-aft crypto encrypt -i secret.pdf -o secret.enc --method pqc -k ./keys/aft_public.key
+ift crypto encrypt -i secret.pdf -o secret.enc --method pqc -k ./keys/aft_public.key
 
 # Decrypt
-aft crypto decrypt -i secret.enc -o secret.pdf -k ./keys/aft_secret.key
+ift crypto decrypt -i secret.enc -o secret.pdf -k ./keys/aft_secret.key
 \`\`\`
 
 ## Next Steps
@@ -137,7 +137,7 @@ export default function GettingStartedPage() {
   return (
     <DocPage
       title="Getting Started"
-      subtitle="Install AFT and run your first transfer in under two minutes."
+      subtitle="Install IFT and run your first transfer in under two minutes."
       content={content}
     />
   );

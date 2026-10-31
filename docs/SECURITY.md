@@ -1,6 +1,6 @@
-# AFT Security Audit Report
+# IFT Security Audit Report
 
-**Tool:** AFT (Agentic File Transfer) v1.3.0  
+**Tool:** IFT (Iron File Transfer) v1.3.0  
 **Date:** 2026-04-01  
 **Scope:** Full codebase audit for Department of Defense (DoD) environment suitability  
 **Frameworks:** CVE patterns, MITRE ATT&CK, NIST FIPS 140-3, CMMC 2.0 Level 2  
@@ -21,7 +21,7 @@
 
 ## Executive Summary
 
-AFT is a Rust-based file transfer CLI with 10+ protocol handlers, a custom binary wire
+IFT is a Rust-based file transfer CLI with 10+ protocol handlers, a custom binary wire
 protocol (AFTP), a turbo transfer engine, and post-quantum encryption. This audit
 evaluates the v1.3.0 codebase against DoD security requirements. Rust's memory safety
 eliminates entire classes of vulnerabilities (buffer overflows, use-after-free, data
@@ -244,7 +244,7 @@ not carry CUI. See the dedicated FEC section below.
 - No minimum TLS version configuration
 - No cipher suite restriction
 - No mTLS (mutual TLS) for client certificate authentication
-- All AFT cryptographic primitives come from IronCrypto (`ic-*` crates), which
+- All IFT cryptographic primitives come from IronCrypto (`ic-*` crates), which
   is not CMVP-validated in either build. The `--features fips` build runs
   IronCrypto's FIPS self-tests and operational discipline, but it does not
   carry a validation certificate (see section 3.1)
@@ -280,7 +280,7 @@ not carry CUI. See the dedicated FEC section below.
 
 ### T1041 — Exfiltration Over C2 Channel
 
-**Assessment:** AFT is a file transfer tool; it inherently supports data exfiltration
+**Assessment:** IFT is a file transfer tool; it inherently supports data exfiltration
 if accessible. This is a deployment consideration, not a code vulnerability.
 
 **Recommendations:**
@@ -342,14 +342,14 @@ not undergone CMVP validation.
 
 **FIPS Feature Flag:** The optional `fips` feature runs IronCrypto's FIPS 140-3
 power-on self-tests at startup and refuses to run if they fail. It does **not**
-make AFT FIPS-validated. IronCrypto implements the FIPS 140-3 operational
+make IFT FIPS-validated. IronCrypto implements the FIPS 140-3 operational
 discipline but has not been submitted to or validated by the CMVP and holds no
-certificate number. AFT previously routed its FIPS build through `aws-lc-rs`
+certificate number. IFT previously routed its FIPS build through `aws-lc-rs`
 (certificate #4631); that validated boundary is no longer in use.
 
 **Path to Compliance:**
 
-1. **Short-term:** Treat AFT as unvalidated for CUI until a CMVP-validated module
+1. **Short-term:** Treat IFT as unvalidated for CUI until a CMVP-validated module
    is in the cryptographic path. Document current crypto usage and obtain a
    waiver/exception for algorithms not yet validated (PQC, neural).
 
@@ -375,8 +375,8 @@ used for protecting sensitive data. The autoencoder weights are static and the c
 has no formal security proof. It is marked with warnings in the code but remains
 callable via the `EncryptionMethod` enum.
 
-**Status (RESOLVED at the CLI):** The `aft crypto encrypt --method neural` and
-`aft crypto train` paths — and `--method hybrid`, which encrypts the bulk
+**Status (RESOLVED at the CLI):** The `ift crypto encrypt --method neural` and
+`ift crypto train` paths — and `--method hybrid`, which encrypts the bulk
 payload with the neural cipher — are now gated behind a global
 `--experimental-crypto` flag (off by default) and refuse to run without it,
 printing an actionable message pointing at `--method pqc`. When the flag is set,
@@ -392,7 +392,7 @@ RustCrypto's `ml-kem` 0.3.2 and now via IronCrypto's `ic-mlkem`. The key file fo
 did not change between those two. This is a deliberate algorithm change — round-3
 Kyber1024 keys/ciphertexts are not interoperable with ML-KEM-1024 — so the key
 file format version was bumped (v1→v2) and legacy files are rejected with a
-"regenerate with `aft keygen`" error.
+"regenerate with `ift keygen`" error.
 
 ### 3.4 Recommendations for FIPS Mode
 
@@ -413,7 +413,7 @@ Add a `--fips` CLI flag or `FIPS_MODE=1` env var that:
 ## 4. CMMC 2.0 Level 2 Assessment
 
 CMMC 2.0 Level 2 maps to NIST SP 800-171 Rev 2, with 110 practices across 14 domains.
-Below are the domains most relevant to AFT as a file transfer tool.
+Below are the domains most relevant to IFT as a file transfer tool.
 
 ### AC — Access Control
 
@@ -555,16 +555,16 @@ AES-256-GCM path above.
 
 ### FIPS status
 
-Every cryptographic primitive AFT uses comes from IronCrypto, through the single
+Every cryptographic primitive IFT uses comes from IronCrypto, through the single
 boundary `src/crypto/primitives.rs`: AES-256-GCM, SHA-256/512, HMAC-SHA256, the
 OS entropy source, and ML-KEM-1024. The FEC data plane (`src/aftp/fec/symcrypto.rs`)
 and the PQC pipeline call that boundary, so they are covered by the same code.
 
-**No part of AFT is FIPS-validated.** IronCrypto is FIPS-oriented: it implements
+**No part of IFT is FIPS-validated.** IronCrypto is FIPS-oriented: it implements
 the FIPS 140-3 operational discipline and checks against published test vectors,
 but it has not been submitted to or validated by the CMVP. `--features fips` adds
 IronCrypto's power-on self-tests, and the build refuses to start if they fail. It
-does not change the validation status. Do not describe an AFT deployment as using
+does not change the validation status. Do not describe an IFT deployment as using
 a FIPS-validated module.
 
 The wire format and key files are unchanged from the previous RustCrypto and
@@ -578,7 +578,7 @@ providers. Moving it to `ic-rustls` would break interop with 2.0.0 peers until
 they are upgraded. Both-ends-`ic-rustls` QUIC works in a loopback test, and it
 is not yet verified against other QUIC stacks.
 Other transitive dependencies also still link `ring` or `aws-lc-rs` (`rcgen`,
-`russh`, `rust-s3`, `quinn`). AFT's own code does not select them.
+`russh`, `rust-s3`, `quinn`). IFT's own code does not select them.
 
 ### Denial of service
 
@@ -724,9 +724,9 @@ change): the highest-severity, remotely-reachable advisories.
 
 **Remaining — no upstream fix (accepted, monitored):**
 
-| Advisory          | Crate           | Severity        | Exposure in AFT                                                  |
+| Advisory          | Crate           | Severity        | Exposure in IFT                                                  |
 | ----------------- | --------------- | --------------- | --------------------------------------------------------------- |
-| RUSTSEC-2023-0071 | rsa 0.10.0-rc   | 🟡 MEDIUM (5.9)  | Marvin timing attack. Now transitive-only via `russh`/`ssh-key` (SFTP host keys); AFT performs no RSA decryption itself and no fixed release exists. Removing it entirely would mean dropping RSA SSH host-key support. |
+| RUSTSEC-2023-0071 | rsa 0.10.0-rc   | 🟡 MEDIUM (5.9)  | Marvin timing attack. Now transitive-only via `russh`/`ssh-key` (SFTP host keys); IFT performs no RSA decryption itself and no fixed release exists. Removing it entirely would mean dropping RSA SSH host-key support. |
 
 **Unmaintained-crate warnings (informational):** `async-std` (via suppaftp/FTP),
 `number_prefix` (via indicatif), `rustls-pemfile`, `spin` (yanked, via
@@ -768,9 +768,9 @@ rsa/ssh-key). None are known-exploitable; tracked with their parent crates.
 
 **Risk Rating for DoD Deployment: LOW-MEDIUM** (improved from MEDIUM in v0.1.0)
 
-AFT v1.3.0 includes auth rate limiting, structured audit logging, connection management,
+IFT v1.3.0 includes auth rate limiting, structured audit logging, connection management,
 per-frame integrity, and credential scrubbing. With the recommended hardening measures
-(FIPS feature flag, TLS enforcement, constant-time token comparison), AFT is suitable
+(FIPS feature flag, TLS enforcement, constant-time token comparison), IFT is suitable
 for DoD environments at the CUI (Controlled Unclassified Information) level.
 
 ---

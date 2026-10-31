@@ -7,7 +7,7 @@ export default function ChangelogPage() {
   return (
     <DocPage
       title="Changelog"
-      subtitle="All notable changes to AFT, following Keep a Changelog and Semantic Versioning"
+      subtitle="All notable changes to IFT, following Keep a Changelog and Semantic Versioning"
       content={content}
     />
   );

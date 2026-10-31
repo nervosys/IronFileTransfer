@@ -18,7 +18,7 @@ use ic_core::traits::Digest;
 use tokio::io::{AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::TcpStream;
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 use super::frame::*;
 
@@ -66,13 +66,13 @@ pub struct AftpClient {
 // ── URL parsing ─────────────────────────────────────────────────────────────
 
 /// Parse `aftp://host:port/path` or `aftps://host:port/path` → (host, port, path, use_tls).
-pub fn parse_aftp_url(url: &str) -> AftResult<(String, u16, String, bool)> {
+pub fn parse_aftp_url(url: &str) -> IftResult<(String, u16, String, bool)> {
     let (rest, use_tls) = if let Some(r) = url.strip_prefix("aftps://") {
         (r, true)
     } else if let Some(r) = url.strip_prefix("aftp://") {
         (r, false)
     } else {
-        return Err(AftError::InvalidUrl(
+        return Err(IftError::InvalidUrl(
             "Not an aftp:// or aftps:// URL".into(),
         ));
     };
@@ -87,14 +87,14 @@ pub fn parse_aftp_url(url: &str) -> AftResult<(String, u16, String, bool)> {
             host_port[..i].to_string(),
             host_port[i + 1..]
                 .parse::<u16>()
-                .map_err(|_| AftError::InvalidUrl("Invalid port in AFTP URL".into()))?,
+                .map_err(|_| IftError::InvalidUrl("Invalid port in AFTP URL".into()))?,
         )
     } else {
         (host_port.to_string(), DEFAULT_PORT)
     };
 
     if host.is_empty() {
-        return Err(AftError::InvalidUrl("Empty host in AFTP URL".into()));
+        return Err(IftError::InvalidUrl("Empty host in AFTP URL".into()));
     }
 
     Ok((host, port, path.to_string(), use_tls))
@@ -169,7 +169,7 @@ impl AftpClient {
     /// session_id, use_fec, use_fec_quic).
     async fn connect(
         &self,
-    ) -> AftResult<(
+    ) -> IftResult<(
         BufReader<BoxRead>,
         BufWriter<BoxWrite>,
         u32,
@@ -182,7 +182,7 @@ impl AftpClient {
         let addr = format!("{}:{}", self.host, self.port);
         let stream = TcpStream::connect(&addr)
             .await
-            .map_err(|e| AftError::ConnectionFailed(format!("AFTP connect to {}: {}", addr, e)))?;
+            .map_err(|e| IftError::ConnectionFailed(format!("AFTP connect to {}: {}", addr, e)))?;
         stream.set_nodelay(true).ok();
         // Enlarge socket buffers to the target BDP; without this the kernel
         // default caps throughput on high-latency links.
@@ -192,11 +192,11 @@ impl AftpClient {
             let config = make_client_tls_config(self.insecure)?;
             let connector = tokio_rustls::TlsConnector::from(config);
             let server_name = rustls::pki_types::ServerName::try_from(self.host.clone())
-                .map_err(|_| AftError::Other(format!("Invalid TLS server name: {}", self.host)))?;
+                .map_err(|_| IftError::Other(format!("Invalid TLS server name: {}", self.host)))?;
             let tls_stream = connector
                 .connect(server_name, stream)
                 .await
-                .map_err(|e| AftError::ConnectionFailed(format!("AFTP TLS handshake: {}", e)))?;
+                .map_err(|e| IftError::ConnectionFailed(format!("AFTP TLS handshake: {}", e)))?;
             let (rd, wr) = tokio::io::split(tls_stream);
             (
                 BufReader::with_capacity(BUF_SIZE, Box::new(rd) as BoxRead),
@@ -251,7 +251,7 @@ impl AftpClient {
             let token = self
                 .auth_token
                 .as_deref()
-                .ok_or_else(|| AftError::AuthFailed("Auth token required for challenge".into()))?;
+                .ok_or_else(|| IftError::AuthFailed("Auth token required for challenge".into()))?;
 
             // Compute HMAC-SHA256(token, nonce)
             let result = crate::crypto::primitives::hmac_sha256(token.as_bytes(), &[&challenge.nonce])?;
@@ -268,13 +268,13 @@ impl AftpClient {
 
         if ack.frame_type == FRAME_ERROR {
             let e = parse_error(&ack.payload)?;
-            return Err(AftError::ConnectionFailed(format!(
+            return Err(IftError::ConnectionFailed(format!(
                 "Server rejected HELLO: {}",
                 e.message
             )));
         }
         if ack.frame_type != FRAME_HELLO_ACK {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "Expected HELLO_ACK, got 0x{:02x}",
                 ack.frame_type
             )));
@@ -311,7 +311,7 @@ impl AftpClient {
     async fn resume_connect(
         &self,
         session_id: &str,
-    ) -> AftResult<(
+    ) -> IftResult<(
         BufReader<BoxRead>,
         BufWriter<BoxWrite>,
         u32,
@@ -323,7 +323,7 @@ impl AftpClient {
         let addr = format!("{}:{}", self.host, self.port);
         let stream = TcpStream::connect(&addr)
             .await
-            .map_err(|e| AftError::ConnectionFailed(format!("AFTP connect to {}: {}", addr, e)))?;
+            .map_err(|e| IftError::ConnectionFailed(format!("AFTP connect to {}: {}", addr, e)))?;
         stream.set_nodelay(true).ok();
         // Enlarge socket buffers to the target BDP; without this the kernel
         // default caps throughput on high-latency links.
@@ -333,11 +333,11 @@ impl AftpClient {
             let config = make_client_tls_config(self.insecure)?;
             let connector = tokio_rustls::TlsConnector::from(config);
             let server_name = rustls::pki_types::ServerName::try_from(self.host.clone())
-                .map_err(|_| AftError::Other(format!("Invalid TLS server name: {}", self.host)))?;
+                .map_err(|_| IftError::Other(format!("Invalid TLS server name: {}", self.host)))?;
             let tls_stream = connector
                 .connect(server_name, stream)
                 .await
-                .map_err(|e| AftError::ConnectionFailed(format!("AFTP TLS handshake: {}", e)))?;
+                .map_err(|e| IftError::ConnectionFailed(format!("AFTP TLS handshake: {}", e)))?;
             let (rd, wr) = tokio::io::split(tls_stream);
             (
                 BufReader::with_capacity(BUF_SIZE, Box::new(rd) as BoxRead),
@@ -363,13 +363,13 @@ impl AftpClient {
         let ack = read_frame(&mut reader, INITIAL_MAX_PAYLOAD).await?;
         if ack.frame_type == FRAME_ERROR {
             let e = parse_error(&ack.payload)?;
-            return Err(AftError::ConnectionFailed(format!(
+            return Err(IftError::ConnectionFailed(format!(
                 "Server rejected RESUME: {}",
                 e.message
             )));
         }
         if ack.frame_type != FRAME_RESUME_ACK {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "Expected RESUME_ACK, got 0x{:02x}",
                 ack.frame_type
             )));
@@ -377,7 +377,7 @@ impl AftpClient {
 
         let ack_data = parse_resume_ack(&ack.payload)?;
         if !ack_data.accepted {
-            return Err(AftError::Other("Server rejected session resume".into()));
+            return Err(IftError::Other("Server rejected session resume".into()));
         }
 
         // Inherit compression setting from the original connection
@@ -406,7 +406,7 @@ impl AftpClient {
         remote_path: &str,
         session_id: &str,
         progress: Option<&(dyn Fn(u64, Option<u64>) + Send + Sync)>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let file_meta = tokio::fs::metadata(source).await?;
         let file_size = file_meta.len();
 
@@ -427,7 +427,7 @@ impl AftpClient {
         let ack = Self::expect_frame(&mut reader, FRAME_PUT_ACK, INITIAL_MAX_PAYLOAD).await?;
         let ack_data = parse_put_ack(&ack.payload)?;
         if ack_data.complete {
-            return Err(AftError::Other(
+            return Err(IftError::Other(
                 "Server sent complete-ACK before data transfer".into(),
             ));
         }
@@ -497,7 +497,7 @@ impl AftpClient {
         let final_ack = Self::expect_frame(&mut reader, FRAME_PUT_ACK, INITIAL_MAX_PAYLOAD).await?;
         let final_ack_data = parse_put_ack(&final_ack.payload)?;
         if !final_ack_data.complete {
-            return Err(AftError::Other(
+            return Err(IftError::Other(
                 "Server did not confirm PUT completion".into(),
             ));
         }
@@ -510,14 +510,14 @@ impl AftpClient {
         reader: &mut BufReader<BoxRead>,
         expected: u8,
         max_payload: u32,
-    ) -> AftResult<Frame> {
+    ) -> IftResult<Frame> {
         let frame = read_frame(reader, max_payload).await?;
         if frame.frame_type == FRAME_ERROR {
             let e = parse_error(&frame.payload)?;
-            return Err(AftError::Other(format!("Server error: {}", e.message)));
+            return Err(IftError::Other(format!("Server error: {}", e.message)));
         }
         if frame.frame_type != expected {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "Expected frame 0x{:02x}, got 0x{:02x}",
                 expected, frame.frame_type
             )));
@@ -527,7 +527,7 @@ impl AftpClient {
 
     // ── HEAD ────────────────────────────────────────────────────────────────
 
-    pub async fn head(&self, path: &str) -> AftResult<AftpFileInfo> {
+    pub async fn head(&self, path: &str) -> IftResult<AftpFileInfo> {
         let (mut reader, mut writer, max_frame, _, _, _session_id, _, _) = self.connect().await?;
 
         let payload = build_head(path);
@@ -551,7 +551,7 @@ impl AftpClient {
         path: &str,
         dest: &Path,
         progress: Option<&(dyn Fn(u64, Option<u64>) + Send + Sync)>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (
             mut reader,
             mut writer,
@@ -591,7 +591,7 @@ impl AftpClient {
         let first = read_frame(&mut reader, max_frame + 1024).await?;
         if first.frame_type == FRAME_FEC_OFFER {
             if !use_fec {
-                return Err(AftError::Other(
+                return Err(IftError::Other(
                     "Server offered the FEC data plane without it being negotiated".into(),
                 ));
             }
@@ -631,7 +631,7 @@ impl AftpClient {
                     };
                     let data = if frame.flags & FLAG_COMPRESSED != 0 {
                         zstd::decode_all(Cursor::new(&raw_payload))
-                            .map_err(|e| AftError::Other(format!("zstd error: {}", e)))?
+                            .map_err(|e| IftError::Other(format!("zstd error: {}", e)))?
                     } else {
                         raw_payload
                     };
@@ -646,7 +646,7 @@ impl AftpClient {
                     let end_data = parse_data_end(&frame.payload)?;
                     // Verify
                     if end_data.total_bytes != received {
-                        return Err(AftError::Other(format!(
+                        return Err(IftError::Other(format!(
                             "Byte count mismatch: expected {}, got {}",
                             end_data.total_bytes, received
                         )));
@@ -654,7 +654,7 @@ impl AftpClient {
                     if end_data.checksum_algo == CHECKSUM_SHA256 && !end_data.checksum.is_empty() {
                         let hash = hasher.finalize();
                         if hash.as_slice() != end_data.checksum.as_slice() {
-                            return Err(AftError::ChecksumMismatch {
+                            return Err(IftError::ChecksumMismatch {
                                 expected: hex::encode(&end_data.checksum),
                                 actual: hex::encode(hash),
                             });
@@ -664,10 +664,10 @@ impl AftpClient {
                 }
                 FRAME_ERROR => {
                     let e = parse_error(&frame.payload)?;
-                    return Err(AftError::Other(format!("Server error: {}", e.message)));
+                    return Err(IftError::Other(format!("Server error: {}", e.message)));
                 }
                 _ => {
-                    return Err(AftError::Other(format!(
+                    return Err(IftError::Other(format!(
                         "Unexpected frame 0x{:02x}",
                         frame.frame_type
                     )));
@@ -697,7 +697,7 @@ impl AftpClient {
         file_size: u64,
         use_fec_quic: bool,
         progress: Option<&(dyn Fn(u64, Option<u64>) + Send + Sync)>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         use super::fec::transfer::FileBlocks;
         let blocks = FileBlocks::new(source.to_path_buf(), 0);
         self.spray_fec_object(
@@ -726,7 +726,7 @@ impl AftpClient {
         source: &Path,
         remote_path: &str,
         progress: Option<&(dyn Fn(u64, Option<u64>) + Send + Sync)>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         use super::fec::manifest::{build_manifest, manifest_prefix, PackedTreeReader};
 
         let built = build_manifest(source).await?;
@@ -752,7 +752,7 @@ impl AftpClient {
             use_fec_quic,
         ) = self.connect().await?;
         if !use_fec {
-            return Err(AftError::Other(
+            return Err(IftError::Other(
                 "Whole-tree packing requires the FEC data plane, which this server did not negotiate"
                     .into(),
             ));
@@ -768,7 +768,7 @@ impl AftpClient {
         let ack = Self::expect_frame(&mut reader, FRAME_PUT_ACK, INITIAL_MAX_PAYLOAD).await?;
         let ack_data = parse_put_ack(&ack.payload)?;
         if ack_data.complete {
-            return Err(AftError::Other(
+            return Err(IftError::Other(
                 "Server sent complete-ACK before tree transfer".into(),
             ));
         }
@@ -804,7 +804,7 @@ impl AftpClient {
         is_tree: bool,
         use_fec_quic: bool,
         progress: Option<&(dyn Fn(u64, Option<u64>) + Send + Sync)>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         use super::fec::transfer::{send_blocks, FecParams, Feedback, SymbolSink, DEFAULT_WINDOW};
         use super::fec::udp::DataPlane;
 
@@ -862,7 +862,7 @@ impl AftpClient {
         let accept_frame = Self::expect_frame(&mut reader, FRAME_FEC_ACCEPT, 64 * 1024).await?;
         let accept = parse_fec_accept(&accept_frame.payload)?;
         if !accept.accepted {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "Server declined the FEC data plane: {}",
                 accept.reason
             )));
@@ -875,7 +875,7 @@ impl AftpClient {
             .ok()
             .and_then(|mut it| it.next())
             .map(|a| a.ip())
-            .ok_or_else(|| AftError::Other(format!("Cannot resolve {}", self.host)))?;
+            .ok_or_else(|| IftError::Other(format!("Cannot resolve {}", self.host)))?;
         let peer = std::net::SocketAddr::new(server_ip, accept.udp_port);
 
         // The sender is always the data-plane *connector*: it dials the port the
@@ -905,7 +905,7 @@ impl AftpClient {
         // then the payload, so a `select!` that drops it mid-frame silently
         // eats bytes and desynchronizes the control stream. Give the reader
         // its own task and select on a channel, which is cancellation-safe.
-        let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::channel::<AftResult<Frame>>(64);
+        let (ctrl_tx, mut ctrl_rx) = tokio::sync::mpsc::channel::<IftResult<Frame>>(64);
         let reader_task = tokio::spawn(async move {
             loop {
                 let f = read_frame(&mut reader, 64 * 1024).await;
@@ -944,10 +944,10 @@ impl AftpClient {
                         }
                         FRAME_ERROR => {
                             let e = parse_error(&frame.payload)?;
-                            return Err(AftError::Other(format!("Server error: {}", e.message)));
+                            return Err(IftError::Other(format!("Server error: {}", e.message)));
                         }
                         other => {
-                            return Err(AftError::Other(format!(
+                            return Err(IftError::Other(format!(
                                 "Unexpected frame 0x{:02x} during FEC upload",
                                 other
                             )))
@@ -995,13 +995,13 @@ impl AftpClient {
                 Some(Ok(f)) if f.frame_type == FRAME_PUT_ACK => break f,
                 Some(Ok(f)) if f.frame_type == FRAME_ERROR => {
                     let e = parse_error(&f.payload)?;
-                    return Err(AftError::Other(format!("Server error: {}", e.message)));
+                    return Err(IftError::Other(format!("Server error: {}", e.message)));
                 }
                 // Trailing NEEDMORE/BLOCK_OK for already-finished blocks.
                 Some(Ok(_)) => continue,
                 Some(Err(e)) => return Err(e),
                 None => {
-                    return Err(AftError::Other(
+                    return Err(IftError::Other(
                         "Control plane closed before the FEC upload was acknowledged".into(),
                     ))
                 }
@@ -1010,7 +1010,7 @@ impl AftpClient {
         reader_task.abort();
         let ack_data = parse_put_ack(&ack.payload)?;
         if !ack_data.complete {
-            return Err(AftError::Other(
+            return Err(IftError::Other(
                 "Server did not confirm the FEC upload".into(),
             ));
         }
@@ -1043,7 +1043,7 @@ impl AftpClient {
         use_fec_quic: bool,
         ctrl_rtt: std::time::Duration,
         progress: Option<&(dyn Fn(u64, Option<u64>) + Send + Sync)>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         use super::fec::transfer::{
             recv_object_into, FecParams, Feedback, FileBlockWriter, SymbolSource, DEFAULT_WINDOW,
         };
@@ -1051,7 +1051,7 @@ impl AftpClient {
 
         let offer = parse_fec_offer(&offer_frame.payload)?;
         if offer.total_len != declared_size {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "FEC offer declares {} bytes but HEAD_RESP said {}",
                 offer.total_len, declared_size
             )));
@@ -1059,7 +1059,7 @@ impl AftpClient {
 
         let key = super::fec::derive_symbol_key(self.auth_token.as_deref(), offer.session_id)?;
         if offer.authenticated && key.is_none() {
-            return Err(AftError::Other(
+            return Err(IftError::Other(
                 "Server requires authenticated FEC symbols but this connection has no token".into(),
             ));
         }
@@ -1116,7 +1116,7 @@ impl AftpClient {
                 write_frame(&mut writer, &frame).await?;
                 writer.flush().await?;
             }
-            Ok::<_, AftError>(writer)
+            Ok::<_, IftError>(writer)
         });
 
         let params = FecParams {
@@ -1183,7 +1183,7 @@ impl AftpClient {
         drop(fb_tx);
         let writer = fb_task
             .await
-            .map_err(|e| AftError::Other(format!("FEC feedback task: {}", e)))??;
+            .map_err(|e| IftError::Other(format!("FEC feedback task: {}", e)))??;
 
         if let Err(e) = recv_result {
             let _ = tokio::fs::remove_file(&tmp).await;
@@ -1199,13 +1199,13 @@ impl AftpClient {
         let end_frame = Self::expect_frame(&mut reader, FRAME_DATA_END, 64 * 1024).await?;
         let end_data = parse_data_end(&end_frame.payload)?;
 
-        let cleanup_and = |e: AftError| async {
+        let cleanup_and = |e: IftError| async {
             let _ = tokio::fs::remove_file(&tmp).await;
             e
         };
 
         if end_data.total_bytes != offer.total_len {
-            return Err(cleanup_and(AftError::Other(format!(
+            return Err(cleanup_and(IftError::Other(format!(
                 "FEC byte count mismatch: expected {}, got {}",
                 end_data.total_bytes, offer.total_len
             )))
@@ -1226,7 +1226,7 @@ impl AftpClient {
             }
             let hash = hasher.finalize();
             if hash.as_slice() != end_data.checksum.as_slice() {
-                return Err(cleanup_and(AftError::ChecksumMismatch {
+                return Err(cleanup_and(IftError::ChecksumMismatch {
                     expected: hex::encode(&end_data.checksum),
                     actual: hex::encode(hash),
                 })
@@ -1245,7 +1245,7 @@ impl AftpClient {
 
     // ── DOWNLOAD RANGE ──────────────────────────────────────────────────────
 
-    pub async fn download_range(&self, path: &str, start: u64, end: u64) -> AftResult<Vec<u8>> {
+    pub async fn download_range(&self, path: &str, start: u64, end: u64) -> IftResult<Vec<u8>> {
         let (mut reader, mut writer, max_frame, _, use_crc32, _session_id, _, _) =
             self.connect().await?;
 
@@ -1272,7 +1272,7 @@ impl AftpClient {
                     };
                     let data = if frame.flags & FLAG_COMPRESSED != 0 {
                         zstd::decode_all(Cursor::new(&raw_payload))
-                            .map_err(|e| AftError::Other(format!("zstd error: {}", e)))?
+                            .map_err(|e| IftError::Other(format!("zstd error: {}", e)))?
                     } else {
                         raw_payload
                     };
@@ -1281,10 +1281,10 @@ impl AftpClient {
                 FRAME_DATA_END => break,
                 FRAME_ERROR => {
                     let e = parse_error(&frame.payload)?;
-                    return Err(AftError::Other(format!("Server error: {}", e.message)));
+                    return Err(IftError::Other(format!("Server error: {}", e.message)));
                 }
                 _ => {
-                    return Err(AftError::Other(format!(
+                    return Err(IftError::Other(format!(
                         "Unexpected frame 0x{:02x}",
                         frame.frame_type
                     )));
@@ -1302,7 +1302,7 @@ impl AftpClient {
         source: &Path,
         remote_path: &str,
         progress: Option<&(dyn Fn(u64, Option<u64>) + Send + Sync)>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let file_meta = tokio::fs::metadata(source).await?;
         let file_size = file_meta.len();
 
@@ -1326,7 +1326,7 @@ impl AftpClient {
         let ack = Self::expect_frame(&mut reader, FRAME_PUT_ACK, INITIAL_MAX_PAYLOAD).await?;
         let ack_data = parse_put_ack(&ack.payload)?;
         if ack_data.complete {
-            return Err(AftError::Other(
+            return Err(IftError::Other(
                 "Server sent complete-ACK before data transfer".into(),
             ));
         }
@@ -1411,7 +1411,7 @@ impl AftpClient {
         let final_ack = Self::expect_frame(&mut reader, FRAME_PUT_ACK, INITIAL_MAX_PAYLOAD).await?;
         let final_ack_data = parse_put_ack(&final_ack.payload)?;
         if !final_ack_data.complete {
-            return Err(AftError::Other(
+            return Err(IftError::Other(
                 "Server did not confirm PUT completion".into(),
             ));
         }
@@ -1421,7 +1421,7 @@ impl AftpClient {
 
     // ── LIST ────────────────────────────────────────────────────────────────
 
-    pub async fn list(&self, path: &str) -> AftResult<Vec<AftpDirEntry>> {
+    pub async fn list(&self, path: &str) -> IftResult<Vec<AftpDirEntry>> {
         let (mut reader, mut writer, max_frame, _, _, _session_id, _, _) = self.connect().await?;
 
         let payload = build_list(path);
@@ -1445,7 +1445,7 @@ impl AftpClient {
 
 // ── TLS helpers ─────────────────────────────────────────────────────────────
 
-fn make_client_tls_config(insecure: bool) -> AftResult<Arc<rustls::ClientConfig>> {
+fn make_client_tls_config(insecure: bool) -> IftResult<Arc<rustls::ClientConfig>> {
     // Restrict to TLS 1.2+ and FIPS-compatible cipher suites
     let tls_versions = &[&rustls::version::TLS13, &rustls::version::TLS12];
     let cipher_suites = vec![
@@ -1470,7 +1470,7 @@ fn make_client_tls_config(insecure: bool) -> AftResult<Arc<rustls::ClientConfig>
         );
         let config = rustls::ClientConfig::builder_with_provider(provider)
             .with_protocol_versions(tls_versions)
-            .map_err(|e| AftError::Other(format!("TLS version config error: {}", e)))?
+            .map_err(|e| IftError::Other(format!("TLS version config error: {}", e)))?
             .dangerous()
             .with_custom_certificate_verifier(Arc::new(InsecureCertVerifier))
             .with_no_client_auth();
@@ -1480,7 +1480,7 @@ fn make_client_tls_config(insecure: bool) -> AftResult<Arc<rustls::ClientConfig>
         root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
         let config = rustls::ClientConfig::builder_with_provider(provider)
             .with_protocol_versions(tls_versions)
-            .map_err(|e| AftError::Other(format!("TLS version config error: {}", e)))?
+            .map_err(|e| IftError::Other(format!("TLS version config error: {}", e)))?
             .with_root_certificates(root_store)
             .with_no_client_auth();
         Ok(Arc::new(config))

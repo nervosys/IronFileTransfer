@@ -34,7 +34,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 use super::envelope::Envelope;
 use super::transfer::{SymbolSink, SymbolSource};
@@ -98,14 +98,14 @@ impl QuicDataPlane {
     /// Send one symbol as a QUIC datagram. Uses the capacity-waiting form so a
     /// momentarily full send buffer applies backpressure to the pacer rather
     /// than dropping the symbol before it ever hits the wire.
-    pub async fn send(&self, block_id: u32, session_id: u64, symbol: &[u8]) -> AftResult<usize> {
+    pub async fn send(&self, block_id: u32, session_id: u64, symbol: &[u8]) -> IftResult<usize> {
         let wire =
             Envelope::new(session_id, block_id, symbol.to_vec()).encode(self.key.as_deref())?;
         let n = wire.len();
         self.conn
             .send_datagram_wait(Bytes::from(wire))
             .await
-            .map_err(|e| AftError::Other(format!("FEC QUIC send_datagram: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("FEC QUIC send_datagram: {}", e)))?;
         Ok(n)
     }
 
@@ -113,12 +113,12 @@ impl QuicDataPlane {
     /// verification or belongs to another session yields `Ok(None)` — expected
     /// noise, not an error — while a genuine connection failure surfaces as
     /// `Err`.
-    pub async fn recv(&self, expect_session: u64) -> AftResult<Option<(u32, Vec<u8>)>> {
+    pub async fn recv(&self, expect_session: u64) -> IftResult<Option<(u32, Vec<u8>)>> {
         let dg = self
             .conn
             .read_datagram()
             .await
-            .map_err(|e| AftError::Other(format!("FEC QUIC read_datagram: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("FEC QUIC read_datagram: {}", e)))?;
         match Envelope::decode(&dg, self.key.as_deref()) {
             Ok(env) if env.session_id == expect_session => Ok(Some((env.block_id, env.payload))),
             _ => Ok(None),
@@ -128,7 +128,7 @@ impl QuicDataPlane {
 
 #[async_trait::async_trait]
 impl SymbolSink for QuicDataPlane {
-    async fn send_symbol(&self, block_id: u32, symbol: &[u8]) -> AftResult<()> {
+    async fn send_symbol(&self, block_id: u32, symbol: &[u8]) -> IftResult<()> {
         self.send(block_id, self.session_id, symbol).await?;
         Ok(())
     }
@@ -136,7 +136,7 @@ impl SymbolSink for QuicDataPlane {
 
 #[async_trait::async_trait]
 impl SymbolSource for QuicDataPlane {
-    async fn recv_symbol(&self) -> AftResult<Option<(u32, Vec<u8>)>> {
+    async fn recv_symbol(&self) -> IftResult<Option<(u32, Vec<u8>)>> {
         self.recv(self.session_id).await
     }
 }
@@ -174,11 +174,11 @@ pub const QUIC_DATAGRAM_MTU: u16 = 1100;
 /// Bind a QUIC listener for the data plane and report its port. Call before
 /// sending the accept so the port can go in it; then [`accept_plane`] to take
 /// the incoming connection.
-pub async fn bind_listener() -> AftResult<(quinn::Endpoint, u16)> {
+pub async fn bind_listener() -> IftResult<(quinn::Endpoint, u16)> {
     let ep = dev_server_endpoint("0.0.0.0:0".parse().unwrap())?;
     let port = ep
         .local_addr()
-        .map_err(|e| AftError::Other(format!("QUIC local_addr: {}", e)))?
+        .map_err(|e| IftError::Other(format!("QUIC local_addr: {}", e)))?
         .port();
     Ok((ep, port))
 }
@@ -189,13 +189,13 @@ pub async fn accept_plane(
     endpoint: quinn::Endpoint,
     key: Option<Vec<u8>>,
     session_id: u64,
-) -> AftResult<QuicDataPlane> {
+) -> IftResult<QuicDataPlane> {
     let conn = endpoint
         .accept()
         .await
-        .ok_or_else(|| AftError::ConnectionFailed("QUIC data plane endpoint closed".into()))?
+        .ok_or_else(|| IftError::ConnectionFailed("QUIC data plane endpoint closed".into()))?
         .await
-        .map_err(|e| AftError::ConnectionFailed(format!("QUIC data plane accept: {}", e)))?;
+        .map_err(|e| IftError::ConnectionFailed(format!("QUIC data plane accept: {}", e)))?;
     Ok(QuicDataPlane::with_endpoint(
         conn, endpoint, key, session_id,
     ))
@@ -206,13 +206,13 @@ pub async fn connect_plane(
     peer: std::net::SocketAddr,
     key: Option<Vec<u8>>,
     session_id: u64,
-) -> AftResult<QuicDataPlane> {
+) -> IftResult<QuicDataPlane> {
     let endpoint = dev_client_endpoint()?;
     let conn = endpoint
         .connect(peer, "localhost")
-        .map_err(|e| AftError::ConnectionFailed(format!("QUIC data plane connect: {}", e)))?
+        .map_err(|e| IftError::ConnectionFailed(format!("QUIC data plane connect: {}", e)))?
         .await
-        .map_err(|e| AftError::ConnectionFailed(format!("QUIC data plane connect: {}", e)))?;
+        .map_err(|e| IftError::ConnectionFailed(format!("QUIC data plane connect: {}", e)))?;
     Ok(QuicDataPlane::with_endpoint(
         conn, endpoint, key, session_id,
     ))
@@ -224,13 +224,13 @@ pub async fn connect_plane(
 /// unreliable datagrams enabled. Development/lab helper — production would carry
 /// the datagram plane over the same authenticated QUIC connection as the
 /// control plane rather than a fresh self-signed one.
-pub fn dev_server_endpoint(addr: std::net::SocketAddr) -> AftResult<quinn::Endpoint> {
+pub fn dev_server_endpoint(addr: std::net::SocketAddr) -> IftResult<quinn::Endpoint> {
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()])
-        .map_err(|e| AftError::Other(format!("QUIC cert gen: {}", e)))?;
+        .map_err(|e| IftError::Other(format!("QUIC cert gen: {}", e)))?;
     let cert_der = cert.cert.der().to_vec();
     let key_der = rustls::pki_types::PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der());
 
-    // Pinned to ring, not the process default. The rest of AFT installs
+    // Pinned to ring, not the process default. The rest of IFT installs
     // ic-rustls as the default provider. A QUIC handshake fails when its two
     // ends use different providers (ring server with ic client, or the
     // reverse), and succeeds when both use the same one. Staying on ring keeps
@@ -240,46 +240,46 @@ pub fn dev_server_endpoint(addr: std::net::SocketAddr) -> AftResult<quinn::Endpo
         rustls::crypto::ring::default_provider(),
     ))
     .with_safe_default_protocol_versions()
-    .map_err(|e| AftError::Other(format!("QUIC server config: {}", e)))?
+    .map_err(|e| IftError::Other(format!("QUIC server config: {}", e)))?
     .with_no_client_auth()
     .with_single_cert(
         vec![rustls::pki_types::CertificateDer::from(cert_der)],
         rustls::pki_types::PrivateKeyDer::Pkcs8(key_der),
     )
-    .map_err(|e| AftError::Other(format!("QUIC server config: {}", e)))?;
+    .map_err(|e| IftError::Other(format!("QUIC server config: {}", e)))?;
     let mut server_config = quinn::ServerConfig::with_crypto(Arc::new(
         quinn::crypto::rustls::QuicServerConfig::try_from(tls)
-            .map_err(|e| AftError::Other(format!("QUIC server config: {}", e)))?,
+            .map_err(|e| IftError::Other(format!("QUIC server config: {}", e)))?,
     ));
     server_config.transport = Arc::new(datagram_transport());
 
     quinn::Endpoint::server(server_config, addr)
-        .map_err(|e| AftError::Other(format!("QUIC server endpoint: {}", e)))
+        .map_err(|e| IftError::Other(format!("QUIC server endpoint: {}", e)))
 }
 
 /// Build a client `Endpoint` that trusts the dev cert (insecure verifier) with
 /// unreliable datagrams enabled. Development/lab helper.
-pub fn dev_client_endpoint() -> AftResult<quinn::Endpoint> {
+pub fn dev_client_endpoint() -> IftResult<quinn::Endpoint> {
     let crypto = rustls::ClientConfig::builder_with_provider(Arc::new(
         rustls::crypto::ring::default_provider(),
     ))
     .with_safe_default_protocol_versions()
-    .map_err(|e| AftError::Other(format!("QUIC client config: {}", e)))?
+    .map_err(|e| IftError::Other(format!("QUIC client config: {}", e)))?
     .dangerous()
         .with_custom_certificate_verifier(Arc::new(InsecureVerifier))
         .with_no_client_auth();
     let mut client_config = quinn::ClientConfig::new(Arc::new(
         quinn::crypto::rustls::QuicClientConfig::try_from(crypto)
-            .map_err(|e| AftError::Other(format!("QUIC client config: {}", e)))?,
+            .map_err(|e| IftError::Other(format!("QUIC client config: {}", e)))?,
     ));
     client_config.transport_config(Arc::new(datagram_transport()));
 
     let mut endpoint = quinn::Endpoint::client(
         "0.0.0.0:0"
             .parse()
-            .map_err(|e| AftError::Other(format!("QUIC bind: {}", e)))?,
+            .map_err(|e| IftError::Other(format!("QUIC bind: {}", e)))?,
     )
-    .map_err(|e| AftError::Other(format!("QUIC client endpoint: {}", e)))?;
+    .map_err(|e| IftError::Other(format!("QUIC client endpoint: {}", e)))?;
     endpoint.set_default_client_config(client_config);
     Ok(endpoint)
 }

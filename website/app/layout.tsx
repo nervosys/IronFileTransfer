@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AFT — Agentic File Transfer",
+  title: "IFT — Iron File Transfer",
   description:
     "High-performance, protocol-agnostic file transfer CLI for humans and AI agents. Post-quantum encryption. DoD-grade security.",
 };

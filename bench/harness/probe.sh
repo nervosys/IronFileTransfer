@@ -1,9 +1,9 @@
 #!/bin/bash
 # probe.sh -- nail down the exact working invocation for each tool.
 set -u
-BENCH_ROOT=${BENCH_ROOT:-$HOME/aft-bench}
+BENCH_ROOT=${BENCH_ROOT:-$HOME/ift-bench}
 H=$BENCH_ROOT/harness
-AFT=${AFT_BIN:-$BENCH_ROOT/aft-src/target/release/aft}
+IFT=${AFT_BIN:-$BENCH_ROOT/ift-src/target/release/ift}
 ATP=${ATP_BIN:-atp}
 SRC=$BENCH_ROOT/probe_src
 DST=$BENCH_ROOT/probe_dst
@@ -54,21 +54,21 @@ sleep 1
 ip netns exec ns_a $ATP send "$SRC" 10.0.0.2:8472 --transport rq
 echo "atp-rq exit=$?"; wait $APID 2>/dev/null; find $DST -type f | sed 's/^/  /'
 
-banner AFT
+banner IFT
 rm -rf $DST; mkdir -p $DST
-ip netns exec ns_b $AFT serve $DST --bind 0.0.0.0 --port 2600 &
+ip netns exec ns_b $IFT serve $DST --bind 0.0.0.0 --port 2600 &
 FPID=$!
 sleep 1
 echo "--- try 1: copy -r dir -> aftp://host:port/ ---"
-ip netns exec ns_a $AFT copy -r "$SRC" "aftp://10.0.0.2:2600/" ; echo "exit=$?"
+ip netns exec ns_a $IFT copy -r "$SRC" "aftp://10.0.0.2:2600/" ; echo "exit=$?"
 find $DST -type f | sed 's/^/  /'
 echo "--- try 2: copy single file -> aftp://host:port/a.bin ---"
-ip netns exec ns_a $AFT copy "$SRC/a.bin" "aftp://10.0.0.2:2600/a.bin" ; echo "exit=$?"
+ip netns exec ns_a $IFT copy "$SRC/a.bin" "aftp://10.0.0.2:2600/a.bin" ; echo "exit=$?"
 find $DST -type f | sed 's/^/  /'
 echo "--- try 3: sync dir -> aftp ---"
-ip netns exec ns_a $AFT sync "$SRC" "aftp://10.0.0.2:2600/" ; echo "exit=$?"
+ip netns exec ns_a $IFT sync "$SRC" "aftp://10.0.0.2:2600/" ; echo "exit=$?"
 find $DST -type f | sed 's/^/  /'
-echo "--- try 4: aft ls aftp:// ---"
-ip netns exec ns_a $AFT ls "aftp://10.0.0.2:2600/" ; echo "exit=$?"
+echo "--- try 4: ift ls aftp:// ---"
+ip netns exec ns_a $IFT ls "aftp://10.0.0.2:2600/" ; echo "exit=$?"
 kill $FPID 2>/dev/null
 echo DONE

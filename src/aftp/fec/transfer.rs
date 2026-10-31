@@ -34,7 +34,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::mpsc;
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 use super::codec::{block_count, block_range, BlockDecoder, BlockEncoder};
 use super::pacing::{repair_symbol_count, Pacer};
@@ -126,19 +126,19 @@ pub enum Feedback {
 /// that drop symbols deterministically.
 #[async_trait::async_trait]
 pub trait SymbolSink: Send + Sync {
-    async fn send_symbol(&self, block_id: u32, symbol: &[u8]) -> AftResult<()>;
+    async fn send_symbol(&self, block_id: u32, symbol: &[u8]) -> IftResult<()>;
 }
 
 /// Where symbols come from. Yields `None` for a datagram that failed
 /// verification, which the caller should ignore rather than treat as an error.
 #[async_trait::async_trait]
 pub trait SymbolSource: Send + Sync {
-    async fn recv_symbol(&self) -> AftResult<Option<(u32, Vec<u8>)>>;
+    async fn recv_symbol(&self) -> IftResult<Option<(u32, Vec<u8>)>>;
 }
 
 #[async_trait::async_trait]
 impl SymbolSink for super::udp::DataPlane {
-    async fn send_symbol(&self, block_id: u32, symbol: &[u8]) -> AftResult<()> {
+    async fn send_symbol(&self, block_id: u32, symbol: &[u8]) -> IftResult<()> {
         self.send(block_id, self.session_id(), symbol).await?;
         Ok(())
     }
@@ -146,7 +146,7 @@ impl SymbolSink for super::udp::DataPlane {
 
 #[async_trait::async_trait]
 impl SymbolSource for super::udp::DataPlane {
-    async fn recv_symbol(&self) -> AftResult<Option<(u32, Vec<u8>)>> {
+    async fn recv_symbol(&self) -> IftResult<Option<(u32, Vec<u8>)>> {
         Ok(self
             .recv(self.session_id())
             .await?
@@ -175,7 +175,7 @@ pub struct RecvStats {
 /// costing 32 MiB and costing 5 GB.
 #[async_trait::async_trait]
 pub trait BlockReader: Send + Sync {
-    async fn read_block(&self, start: u64, len: usize) -> AftResult<Vec<u8>>;
+    async fn read_block(&self, start: u64, len: usize) -> IftResult<Vec<u8>>;
 }
 
 /// Serves blocks from a buffer already in memory.
@@ -183,12 +183,12 @@ pub struct SliceBlocks<'a>(pub &'a [u8]);
 
 #[async_trait::async_trait]
 impl BlockReader for SliceBlocks<'_> {
-    async fn read_block(&self, start: u64, len: usize) -> AftResult<Vec<u8>> {
+    async fn read_block(&self, start: u64, len: usize) -> IftResult<Vec<u8>> {
         let start = start as usize;
         let end = start
             .checked_add(len)
             .filter(|e| *e <= self.0.len())
-            .ok_or_else(|| AftError::Other("FEC block range out of bounds".into()))?;
+            .ok_or_else(|| IftError::Other("FEC block range out of bounds".into()))?;
         Ok(self.0[start..end].to_vec())
     }
 }
@@ -211,7 +211,7 @@ impl FileBlocks {
 
 #[async_trait::async_trait]
 impl BlockReader for FileBlocks {
-    async fn read_block(&self, start: u64, len: usize) -> AftResult<Vec<u8>> {
+    async fn read_block(&self, start: u64, len: usize) -> IftResult<Vec<u8>> {
         use tokio::io::{AsyncReadExt, AsyncSeekExt};
         let mut f = tokio::fs::File::open(&self.path).await?;
         f.seek(std::io::SeekFrom::Start(self.base + start)).await?;
@@ -230,7 +230,7 @@ impl BlockReader for FileBlocks {
 /// [`BlockReader`] does for the sender.
 #[async_trait::async_trait]
 pub trait BlockWriter: Send + Sync {
-    async fn write_block(&mut self, offset: u64, data: &[u8]) -> AftResult<()>;
+    async fn write_block(&mut self, offset: u64, data: &[u8]) -> IftResult<()>;
 }
 
 /// Collects blocks into memory. Convenient for small objects and tests.
@@ -249,12 +249,12 @@ impl VecBlocks {
 
 #[async_trait::async_trait]
 impl BlockWriter for VecBlocks {
-    async fn write_block(&mut self, offset: u64, data: &[u8]) -> AftResult<()> {
+    async fn write_block(&mut self, offset: u64, data: &[u8]) -> IftResult<()> {
         let start = offset as usize;
         let end = start
             .checked_add(data.len())
             .filter(|e| *e <= self.buf.len())
-            .ok_or_else(|| AftError::Other("FEC block write out of bounds".into()))?;
+            .ok_or_else(|| IftError::Other("FEC block write out of bounds".into()))?;
         self.buf[start..end].copy_from_slice(data);
         Ok(())
     }
@@ -268,13 +268,13 @@ pub struct FileBlockWriter {
 impl FileBlockWriter {
     /// Create (or truncate) `path` and pre-allocate it to `len`, so
     /// out-of-order block writes always land inside the file.
-    pub async fn create(path: &std::path::Path, len: u64) -> AftResult<Self> {
+    pub async fn create(path: &std::path::Path, len: u64) -> IftResult<Self> {
         let file = tokio::fs::File::create(path).await?;
         file.set_len(len).await?;
         Ok(Self { file })
     }
 
-    pub async fn finish(mut self) -> AftResult<()> {
+    pub async fn finish(mut self) -> IftResult<()> {
         use tokio::io::AsyncWriteExt;
         self.file.flush().await?;
         Ok(())
@@ -283,7 +283,7 @@ impl FileBlockWriter {
 
 #[async_trait::async_trait]
 impl BlockWriter for FileBlockWriter {
-    async fn write_block(&mut self, offset: u64, data: &[u8]) -> AftResult<()> {
+    async fn write_block(&mut self, offset: u64, data: &[u8]) -> IftResult<()> {
         use tokio::io::{AsyncSeekExt, AsyncWriteExt};
         self.file.seek(std::io::SeekFrom::Start(offset)).await?;
         self.file.write_all(data).await?;
@@ -328,9 +328,9 @@ pub async fn send_object(
     sink: &dyn SymbolSink,
     feedback: &mut mpsc::Receiver<Feedback>,
     params: &FecParams,
-) -> AftResult<SendStats> {
+) -> IftResult<SendStats> {
     if data.len() as u64 != params.total_len {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "FEC send: {} bytes of data but params declare {}",
             data.len(),
             params.total_len
@@ -346,7 +346,7 @@ pub async fn send_blocks(
     sink: &dyn SymbolSink,
     feedback: &mut mpsc::Receiver<Feedback>,
     params: &FecParams,
-) -> AftResult<SendStats> {
+) -> IftResult<SendStats> {
     let total_blocks = params.block_count();
     let window = params.window.max(1);
     let mut pacer = Pacer::new();
@@ -389,7 +389,7 @@ pub async fn send_blocks(
             .find(|(_, f)| f.rounds > MAX_REPAIR_ROUNDS)
             .map(|(id, _)| id)
         {
-            return Err(AftError::TransferFailed(format!(
+            return Err(IftError::TransferFailed(format!(
                 "FEC block {} did not converge after {} repair rounds",
                 stuck, MAX_REPAIR_ROUNDS
             )));
@@ -451,7 +451,7 @@ pub async fn send_blocks(
                             .await?
                         }
                         None => {
-                            return Err(AftError::TransferFailed(
+                            return Err(IftError::TransferFailed(
                                 "FEC control plane closed during startup".into(),
                             ))
                         }
@@ -506,7 +506,7 @@ pub async fn send_blocks(
                 .await?
             }
             None => {
-                return Err(AftError::TransferFailed(format!(
+                return Err(IftError::TransferFailed(format!(
                     "FEC control plane closed with {}/{} blocks acknowledged",
                     acked, total_blocks
                 )))
@@ -545,7 +545,7 @@ async fn apply_feedback(
     sink: &dyn SymbolSink,
     pacer: &mut Pacer,
     stats: &mut SendStats,
-) -> AftResult<()> {
+) -> IftResult<()> {
     match msg {
         Feedback::BlockOk {
             block_id,
@@ -664,7 +664,7 @@ async fn pace_and_send(
     symbol: &[u8],
     pacer: &mut Pacer,
     stats: &mut SendStats,
-) -> AftResult<()> {
+) -> IftResult<()> {
     let delay = pacer.acquire(symbol.len() as u64);
     if !delay.is_zero() {
         tokio::time::sleep(delay).await;
@@ -684,7 +684,7 @@ pub async fn recv_object(
     feedback: &mpsc::Sender<Feedback>,
     params: &FecParams,
     rtt_estimate: Duration,
-) -> AftResult<(Vec<u8>, RecvStats)> {
+) -> IftResult<(Vec<u8>, RecvStats)> {
     let mut sink = VecBlocks::with_len(params.total_len as usize);
     let stats = recv_object_into(source, &mut sink, feedback, params, rtt_estimate).await?;
     Ok((sink.buf, stats))
@@ -701,7 +701,7 @@ pub async fn recv_object_into(
     feedback: &mpsc::Sender<Feedback>,
     params: &FecParams,
     rtt_estimate: Duration,
-) -> AftResult<RecvStats> {
+) -> IftResult<RecvStats> {
     let total_blocks = params.block_count();
     let mut decoders: HashMap<u32, BlockDecoder> = HashMap::new();
     let mut done: HashMap<u32, bool> = HashMap::new();
@@ -780,7 +780,7 @@ pub async fn recv_object_into(
                             let symbols_used = decoder.symbols_accepted();
                             let block = decoder
                                 .take()
-                                .ok_or_else(|| AftError::Other("FEC block vanished".into()))?;
+                                .ok_or_else(|| IftError::Other("FEC block vanished".into()))?;
                             let (start, _) =
                                 block_range(block_id, params.block_size, params.total_len);
                             out.write_block(start, &block).await?;
@@ -900,7 +900,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl SymbolSink for LossyLink {
-        async fn send_symbol(&self, block_id: u32, symbol: &[u8]) -> AftResult<()> {
+        async fn send_symbol(&self, block_id: u32, symbol: &[u8]) -> IftResult<()> {
             let n = self.counter.fetch_add(1, Ordering::Relaxed);
             if self.drop_one_in > 0 && n % self.drop_one_in == 0 {
                 self.dropped.fetch_add(1, Ordering::Relaxed);
@@ -914,7 +914,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl SymbolSource for LossyLink {
-        async fn recv_symbol(&self) -> AftResult<Option<(u32, Vec<u8>)>> {
+        async fn recv_symbol(&self) -> IftResult<Option<(u32, Vec<u8>)>> {
             let mut rx = self.rx.lock().await;
             Ok(rx.recv().await)
         }

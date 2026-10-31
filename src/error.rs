@@ -1,6 +1,6 @@
 // Copyright (c) 2024-2026 Nervosys LLC
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Error types for the AFT library.
+//! Error types for the IFT library.
 //!
 //! Provides a unified error enum covering all protocol, I/O, and
 //! application-level failures, with automatic conversion from
@@ -10,7 +10,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 #[allow(dead_code)]
-pub enum AftError {
+pub enum IftError {
     #[error("Unsupported protocol: {0}")]
     UnsupportedProtocol(String),
 
@@ -57,4 +57,4 @@ pub enum AftError {
     Other(String),
 }
 
-pub type AftResult<T> = Result<T, AftError>;
+pub type IftResult<T> = Result<T, IftError>;

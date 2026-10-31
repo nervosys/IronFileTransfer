@@ -1,19 +1,19 @@
 <p align="center">
-  <img src="media/banner.png" alt="AFT — Agentic File Transfer" width="100%">
+  <img src="media/banner.png" alt="IFT — Iron File Transfer" width="100%">
 </p>
 
 **High-performance, protocol-agnostic file transfer CLI for humans and AI agents.**
 
-AFT is designed from the ground up as an _agentic-first_ tool — every command produces structured, machine-readable output that AI agents can discover, parse, and act on. It also provides colorized, human-friendly output for interactive use.
+IFT is designed from the ground up as an _agentic-first_ tool — every command produces structured, machine-readable output that AI agents can discover, parse, and act on. It also provides colorized, human-friendly output for interactive use.
 
 ## Features
 
 - **Multi-protocol** — HTTP/HTTPS, FTP/FTPS, SFTP/SCP, S3, WebDAV, Azure Blob, GCS, SMB, AFTP/AFTPS, DoD CDS, local file system
 - **AFTP — custom binary protocol** — 10-byte framed wire protocol with zstd compression,
   streaming SHA-256, TLS/mTLS, HMAC-SHA256 challenge/response auth, and TCP_NODELAY
-- **Built-in file server** — `aft serve` exposes any directory over AFTP with optional
+- **Built-in file server** — `ift serve` exposes any directory over AFTP with optional
   TLS, authentication, and compression
-- **BBR-paced TCP** — AFT requests **BBR** congestion control on its sockets by default
+- **BBR-paced TCP** — IFT requests **BBR** congestion control on its sockets by default
   (`setsockopt(TCP_CONGESTION, "bbr")`, Linux, best-effort; override with `AFT_TCP_CC`).
   BBR paces to bottleneck bandwidth and ignores random loss, so the TCP path is both the
   **fastest tool measured on a clean link** (2.8 s for 50 MB, tightest distribution) and
@@ -23,12 +23,12 @@ AFT is designed from the ground up as an _agentic-first_ tool — every command 
   as AAD), BBR-style pacing, and stage-verify-commit integrity. For links so lossy that
   reliable TCP cannot drain at all (10% loss + reordering), it is the **only** transport
   tested that completes — 50 MB in ~103 s median (3/3) where every reliable-transport tool,
-  AFT's own BBR-TCP path included, times out
+  IFT's own BBR-TCP path included, times out
   ([measured head-to-head](docs/BENCHMARKS.md#measured-head-to-head-lossy-and-latent-links))
 - **Quantum-resistant encryption** — NIST FIPS 203 ML-KEM (Kyber1024) key encapsulation
   with AES-256-GCM authenticated encryption for post-quantum file protection
 - **Neural network cipher** — Trainable MLP autoencoder encryption with OFB mode;
-  custom models via `aft crypto train`, supports PQC, Neural, and Hybrid modes
+  custom models via `ift crypto train`, supports PQC, Neural, and Hybrid modes
 - **DoD classification enforcement** — `dod://` protocol scheme with classification
   levels (CUI through Top Secret), STIG compliance, and X-Classification headers
 - **Security hardened** — TLS 1.2+ enforcement, FIPS-compatible cipher suites, auth rate
@@ -53,19 +53,19 @@ AFT is designed from the ground up as an _agentic-first_ tool — every command 
   after network interruptions without restarting from scratch
 - **Retry with backoff** — Exponential backoff retry logic for reliability
 - **Checksum verification** — SHA-256, SHA-512, and MD5 integrity verification
-- **Directory synchronization** — `aft sync` with rsync/rclone-class sync engine:
+- **Directory synchronization** — `ift sync` with rsync/rclone-class sync engine:
   concurrent file transfers (`--transfers`, default 8) so a tree of N files does not
   cost N serialized round trips, configurable compare modes (size, modtime, checksum),
   `--dry-run`, `--delete` extraneous, include/exclude glob filters, size filters,
   and depth limiting
-- **Move / rename** — `aft mv` to move or rename files across protocols
-- **Delete** — `aft rm` to remove files and directories (with `--recursive`)
-- **Create directories** — `aft mkdir` to create directories on any protocol
+- **Move / rename** — `ift mv` to move or rename files across protocols
+- **Delete** — `ift rm` to remove files and directories (with `--recursive`)
+- **Create directories** — `ift mkdir` to create directories on any protocol
 - **Preserve timestamps** — `--preserve` flag to copy modification times
 - **Extended protocol operations** — `delete`, `rename`, `mkdir`, `set_timestamps`,
   `exists`, and `list_recursive` operations on all protocol handlers with default
   implementations (full support on local filesystem)
-- **Recursive directory copy** — `aft copy -r` for directory trees across protocols
+- **Recursive directory copy** — `ift copy -r` for directory trees across protocols
 - **Bandwidth throttling** — `--rate-limit` to cap transfer speed in bytes/sec
 - **Configuration file** — Persistent settings via `~/.aft/config.toml`
 - **Transfer history** — Logged to `~/.aft/history.jsonl` (JSON Lines) for auditing
@@ -81,7 +81,7 @@ AFT is designed from the ground up as an _agentic-first_ tool — every command 
 
 ## Deployment Modes
 
-AFT is a self-contained static binary with no runtime dependencies, making it suitable
+IFT is a self-contained static binary with no runtime dependencies, making it suitable
 for a wide range of operating environments — from internet-connected workstations to
 classified air-gapped networks.
 
@@ -91,18 +91,18 @@ All core operations work without any network access via the `file://` scheme:
 
 ```bash
 # Copy between local directories
-aft copy ./source/ ./backup/source/ -r
+ift copy ./source/ ./backup/source/ -r
 
 # Compute checksums
-aft checksum ./release.bin --algorithm sha256
+ift checksum ./release.bin --algorithm sha256
 
 # List local files
-aft ls ./data/
+ift ls ./data/
 
 # Encrypt / decrypt entirely offline
-aft crypto keygen -o ./keys/
-aft crypto encrypt ./secret.pdf -o ./secret.afte -k ./keys/keys.pub -m pqc
-aft crypto decrypt ./secret.afte -o ./secret.pdf -k ./keys/keys.sec
+ift crypto keygen -o ./keys/
+ift crypto encrypt ./secret.pdf -o ./secret.afte -k ./keys/keys.pub -m pqc
+ift crypto decrypt ./secret.afte -o ./secret.pdf -k ./keys/keys.sec
 ```
 
 Local-to-local transfers use 256 KB I/O buffers and bypass all network code paths —
@@ -110,13 +110,13 @@ no sockets are opened.
 
 ### Air-Gapped / SCIF
 
-AFT is deployable on air-gapped and disconnected networks with no modification:
+IFT is deployable on air-gapped and disconnected networks with no modification:
 
 - **No external dependencies** — Single static binary; no dynamic library loading
   required (plugins are opt-in from `~/.aft/plugins/`)
 - **Offline crypto** — PQC keygen, encrypt, and decrypt use only local entropy
   (`OsRng`) and need no network
-- **Local AFTP server** — `aft serve ./files` starts a file server over loopback
+- **Local AFTP server** — `ift serve ./files` starts a file server over loopback
   or an isolated LAN for high-performance binary transfers within a secure enclave
 - **FIPS 140-3 mode** — `cargo build --release --features fips` for environments
   requiring FIPS-validated TLS (aws-lc-rs)
@@ -124,29 +124,29 @@ AFT is deployable on air-gapped and disconnected networks with no modification:
 ```bash
 # Air-gapped workflow: server on one node, client on another
 # Node A (file server):
-aft serve ./shared --bind 10.0.0.1 --tls-cert cert.pem --tls-key key.pem --auth-token TOKEN
+ift serve ./shared --bind 10.0.0.1 --tls-cert cert.pem --tls-key key.pem --auth-token TOKEN
 
 # Node B (client):
-aft ls aftps://10.0.0.1:2600/
-aft get aftps://10.0.0.1:2600/payload.bin -o ./payload.bin
+ift ls aftps://10.0.0.1:2600/
+ift get aftps://10.0.0.1:2600/payload.bin -o ./payload.bin
 ```
 
 ### Hardware Devices & Removable Media
 
-AFT treats any mounted filesystem path as a first-class transfer endpoint. This
+IFT treats any mounted filesystem path as a first-class transfer endpoint. This
 includes USB drives, external SSDs, NAS mounts, and block devices presented as volumes:
 
 ```bash
 # Windows — USB drive mounted at E:\
-aft copy ./classified/ E:\transfer\classified\ -r
-aft checksum E:\transfer\classified\report.pdf --algorithm sha256
+ift copy ./classified/ E:\transfer\classified\ -r
+ift checksum E:\transfer\classified\report.pdf --algorithm sha256
 
 # Linux / macOS — removable media at /mnt/usb
-aft copy ./data/ /mnt/usb/data/ -r
-aft get aftp://server:2600/export.tar -o /mnt/usb/export.tar
+ift copy ./data/ /mnt/usb/data/ -r
+ift get aftp://server:2600/export.tar -o /mnt/usb/export.tar
 
 # NAS / network share mounted locally
-aft copy -r /mnt/nas/project/ ./local-mirror/
+ift copy -r /mnt/nas/project/ ./local-mirror/
 ```
 
 Path resolution is automatic — any relative or absolute filesystem path, drive letter,
@@ -154,7 +154,7 @@ or `file://` URI is handled by the local protocol handler with resume and range 
 
 ### Sandboxed & Minimal Environments
 
-AFT works in restricted environments (containers, CI runners, minimal VMs) with no
+IFT works in restricted environments (containers, CI runners, minimal VMs) with no
 special setup:
 
 - **No daemon** — Pure CLI invocation; no background service or socket needed
@@ -169,30 +169,30 @@ special setup:
 
 ```bash
 # CI/CD pipeline — download, verify, no interactive output
-aft --agent get https://releases.example.com/build.tar.gz -o ./build.tar.gz \
+ift --agent get https://releases.example.com/build.tar.gz -o ./build.tar.gz \
   --checksum sha256 \
   --checksum-value abc123...
 
 # Container — transfer between mounted volumes
-aft copy /input/data.csv /output/data.csv
+ift copy /input/data.csv /output/data.csv
 
 # Sandboxed agent — structured JSON for programmatic consumption
-aft --format json checksum ./artifact.bin --algorithm sha256
+ift --format json checksum ./artifact.bin --algorithm sha256
 ```
 
 ### Arbitrary Protocols via Plugins
 
-Beyond the 12 built-in protocol handlers, AFT supports runtime-loadable protocol
+Beyond the 12 built-in protocol handlers, IFT supports runtime-loadable protocol
 plugins as shared libraries (`.dll` / `.so` / `.dylib`). Plugins implement the
 `ProtocolHandler` trait and register a URL scheme:
 
 ```bash
 # Load a custom protocol handler
-aft plugin load ./my-protocol.so
+ift plugin load ./my-protocol.so
 
-# Use it with any AFT command
-aft get myproto://device/sensor-data -o ./readings.bin
-aft ls myproto://device/
+# Use it with any IFT command
+ift get myproto://device/sensor-data -o ./readings.bin
+ift ls myproto://device/
 
 # Permanently install — drop into the plugin directory
 cp ./my-protocol.so ~/.aft/plugins/
@@ -200,7 +200,7 @@ cp ./my-protocol.so ~/.aft/plugins/
 
 Plugins are SHA-256 signature verified on load. This enables integration with
 proprietary transfer systems, hardware interfaces, or domain-specific protocols
-without modifying AFT itself. See [Plugin System](#plugin-system) for details.
+without modifying IFT itself. See [Plugin System](#plugin-system) for details.
 
 ## Installation
 
@@ -212,7 +212,7 @@ Or build from source:
 
 ```bash
 cargo build --release
-# Binary at target/release/aft (or aft.exe on Windows)
+# Binary at target/release/ift (or ift.exe on Windows)
 ```
 
 ## Quick Start
@@ -220,89 +220,89 @@ cargo build --release
 ### Download a file
 
 ```bash
-aft get https://example.com/file.tar.gz
-aft get https://example.com/file.tar.gz -o ./downloads/
+ift get https://example.com/file.tar.gz
+ift get https://example.com/file.tar.gz -o ./downloads/
 ```
 
 ### Upload a file
 
 ```bash
-aft put ./report.pdf https://upload.example.com/files/
-aft put ./data.json https://api.example.com/upload --method POST --content-type application/json
+ift put ./report.pdf https://upload.example.com/files/
+ift put ./data.json https://api.example.com/upload --method POST --content-type application/json
 ```
 
 ### Copy between locations
 
 ```bash
-aft copy ./src/ ./backup/src/
-aft copy -r ./project/ sftp://server/backups/project/
+ift copy ./src/ ./backup/src/
+ift copy -r ./project/ sftp://server/backups/project/
 ```
 
 ### Synchronize directories
 
 ```bash
 # Sync local to remote (rsync-style — only transfer changed files)
-aft sync ./project/ sftp://server/backup/project/
+ift sync ./project/ sftp://server/backup/project/
 
 # Dry run — preview what would change
-aft sync ./src/ ./dst/ --dry-run
+ift sync ./src/ ./dst/ --dry-run
 
 # Delete extraneous files in destination
-aft sync ./src/ ./dst/ --delete
+ift sync ./src/ ./dst/ --delete
 
 # Include/exclude filters
-aft sync ./src/ ./dst/ --include "*.rs" --exclude "target/*"
+ift sync ./src/ ./dst/ --include "*.rs" --exclude "target/*"
 
 # Compare by checksum instead of size
-aft sync ./src/ ./dst/ --compare checksum
+ift sync ./src/ ./dst/ --compare checksum
 ```
 
 ### Move / rename
 
 ```bash
-aft mv ./old-name.txt ./new-name.txt
-aft mv ./file.pdf sftp://server/archive/file.pdf
+ift mv ./old-name.txt ./new-name.txt
+ift mv ./file.pdf sftp://server/archive/file.pdf
 ```
 
 ### Delete files and directories
 
 ```bash
-aft rm ./temp-file.txt
-aft rm ./build-output/ --recursive
+ift rm ./temp-file.txt
+ift rm ./build-output/ --recursive
 ```
 
 ### Create directories
 
 ```bash
-aft mkdir ./new-dir/sub-dir/
-aft mkdir sftp://server/uploads/batch-001/
+ift mkdir ./new-dir/sub-dir/
+ift mkdir sftp://server/uploads/batch-001/
 ```
 ### Inspect a remote resource
 
 ```bash
-aft head https://example.com/file.tar.gz
+ift head https://example.com/file.tar.gz
 ```
 
 ### List directory contents
 
 ```bash
-aft ls ./my-directory/
-aft ls aftp://server:2600/
+ift ls ./my-directory/
+ift ls aftp://server:2600/
 
 # Recursive listing with long format
-aft ls -r -l ./project/
+ift ls -r -l ./project/
 ```
 
 ### Compute a checksum
 
 ```bash
-aft checksum ./file.tar.gz --algorithm sha256
+ift checksum ./file.tar.gz --algorithm sha256
 ```
 
 ### Download with integrity verification
 
 ```bash
-aft get https://example.com/release.tar.gz \
+ift get https://example.com/release.tar.gz \
   --checksum sha256 \
   --checksum-value e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 ```
@@ -310,7 +310,7 @@ aft get https://example.com/release.tar.gz \
 ### Resume a partial download
 
 ```bash
-aft get https://example.com/large.iso -o ./large.iso --resume
+ift get https://example.com/large.iso -o ./large.iso --resume
 ```
 
 ## AFTP — Custom Binary Protocol
@@ -321,35 +321,35 @@ AFTP is a purpose-built binary file transfer protocol with 10-byte frame headers
 
 ```bash
 # Basic — serve a directory on port 2600
-aft serve ./files
+ift serve ./files
 
 # With TLS and authentication
-aft serve ./files --tls-cert cert.pem --tls-key key.pem --auth-token SECRET
+ift serve ./files --tls-cert cert.pem --tls-key key.pem --auth-token SECRET
 
 # With HMAC-SHA256 challenge/response auth
-aft serve ./files --auth-token SECRET --auth-challenge
+ift serve ./files --auth-token SECRET --auth-challenge
 
 # With zstd compression
-aft serve ./files --compression
+ift serve ./files --compression
 ```
 
 ### Client operations
 
 ```bash
 # List files on an AFTP server
-aft ls aftp://server:2600/
+ift ls aftp://server:2600/
 
 # Download a file
-aft get aftp://server:2600/data.bin -o ./data.bin
+ift get aftp://server:2600/data.bin -o ./data.bin
 
 # Upload a file
-aft put ./report.pdf aftp://server:2600/report.pdf
+ift put ./report.pdf aftp://server:2600/report.pdf
 
 # Inspect metadata
-aft head aftp://server:2600/data.bin
+ift head aftp://server:2600/data.bin
 
 # TLS-encrypted connection (aftps://)
-aft ls aftps://server:2600/
+ift ls aftps://server:2600/
 ```
 
 ### Fountain-coded transfers over lossy links (`--fec`)
@@ -360,11 +360,11 @@ while keeping the TCP connection as a control plane:
 
 ```bash
 # Server side — nothing extra; FEC support is advertised automatically
-aft serve ./files
+ift serve ./files
 
 # Client side — opt in per transfer
-aft get aftp://server:2600/data.bin -o ./data.bin --fec
-aft put ./big.tar aftp://server:2600/big.tar --fec
+ift get aftp://server:2600/data.bin -o ./data.bin --fec
+ift put ./big.tar aftp://server:2600/big.tar --fec
 ```
 
 Packet loss then costs repair bandwidth instead of TCP round-trip stalls: any
@@ -419,64 +419,64 @@ Full methodology, numbers, and caveats: [docs/BENCHMARKS.md](docs/BENCHMARKS.md)
 
 ## Agent Mode
 
-AFT is designed for AI agent integration. Use `--agent` for optimal machine consumption:
+IFT is designed for AI agent integration. Use `--agent` for optimal machine consumption:
 
 ```bash
 # Structured JSON output, no progress bars, deterministic
-aft --agent get https://example.com/data.json -o /tmp/data.json
+ift --agent get https://example.com/data.json -o /tmp/data.json
 
 # Discover capabilities programmatically
-aft --agent capabilities
+ift --agent capabilities
 
 # Full ontology schema for tool registration
-aft --agent schema
+ift --agent schema
 ```
 
 ## Quantum-Resistant Encryption
 
-AFT includes post-quantum cryptography (NIST FIPS 203 ML-KEM / Kyber1024) and a trainable neural network cipher for experimental encryption workflows.
+IFT includes post-quantum cryptography (NIST FIPS 203 ML-KEM / Kyber1024) and a trainable neural network cipher for experimental encryption workflows.
 
 ### Generate a PQC key pair
 
 ```bash
-aft crypto keygen -o ./keys/
+ift crypto keygen -o ./keys/
 # Creates aft_public.key and aft_secret.key
 ```
 
 ### Encrypt / decrypt with PQC (Kyber1024 + AES-256-GCM)
 
 ```bash
-aft crypto encrypt -i secret.pdf -o secret.enc --method pqc --key-file ./keys/aft_public.key
-aft crypto decrypt -i secret.enc -o secret.pdf --key-file ./keys/aft_secret.key
+ift crypto encrypt -i secret.pdf -o secret.enc --method pqc --key-file ./keys/aft_public.key
+ift crypto decrypt -i secret.enc -o secret.pdf --key-file ./keys/aft_secret.key
 ```
 
 ### Train a neural network cipher model
 
 ```bash
-aft crypto train --epochs 2000 --learning-rate 0.01 -o ./model/
+ift crypto train --epochs 2000 --learning-rate 0.01 -o ./model/
 # Creates aft_neural.model (~90 KB)
 ```
 
 ### Encrypt / decrypt with neural cipher (OFB mode)
 
 ```bash
-aft crypto encrypt -i data.bin -o data.enc --method neural --key-file ./model/aft_neural.model
-aft crypto decrypt -i data.enc -o data.bin --key-file ./model/aft_neural.model
+ift crypto encrypt -i data.bin -o data.enc --method neural --key-file ./model/aft_neural.model
+ift crypto decrypt -i data.enc -o data.bin --key-file ./model/aft_neural.model
 ```
 
 ### Hybrid mode (PQC key exchange + neural cipher)
 
 ```bash
-aft crypto encrypt -i payload.tar -o payload.enc --method hybrid --key-file ./keys/aft_public.key
-aft crypto decrypt -i payload.enc -o payload.tar --key-file ./keys/aft_secret.key
+ift crypto encrypt -i payload.tar -o payload.enc --method hybrid --key-file ./keys/aft_public.key
+ift crypto decrypt -i payload.enc -o payload.tar --key-file ./keys/aft_secret.key
 ```
 
 ## DoD Classified Transfers
 
 ```bash
 # Transfer with classification enforcement (dod://LEVEL@host/path)
-aft get dod://secret@server.mil/reports/sitrep.pdf -o ./sitrep.pdf
-aft put ./intel.pdf dod://topsecret@server.mil/uploads/intel.pdf
+ift get dod://secret@server.mil/reports/sitrep.pdf -o ./sitrep.pdf
+ift put ./intel.pdf dod://topsecret@server.mil/uploads/intel.pdf
 ```
 
 ## Output Schema
@@ -516,24 +516,24 @@ All operations return a consistent JSON structure:
 
 ## Plugin System
 
-Extend AFT with custom protocol handlers via shared libraries:
+Extend IFT with custom protocol handlers via shared libraries:
 
 ```bash
 # List loaded plugins
-aft plugin list
+ift plugin list
 
 # Load a plugin
-aft plugin load ./my-protocol.dll
+ift plugin load ./my-protocol.dll
 
 # Unload a plugin by scheme
-aft plugin unload myproto
+ift plugin unload myproto
 ```
 
 Plugins are automatically loaded from `~/.aft/plugins/` at startup.
 
 ## Security
 
-AFT includes security features designed for DoD and enterprise environments.
+IFT includes security features designed for DoD and enterprise environments.
 See [SECURITY.md](docs/SECURITY.md) for the full audit report covering CVE patterns,
 MITRE ATT&CK mitigations, NIST FIPS 140-3 compliance, and CMMC 2.0 Level 2 assessment.
 
@@ -595,7 +595,7 @@ MITRE ATT&CK mitigations, NIST FIPS 140-3 compliance, and CMMC 2.0 Level 2 asses
 src/
 ├── main.rs                 # Entry point, command dispatch, UTF-8 console init
 ├── cli.rs                  # CLI parser (clap derive, 16 subcommands)
-├── error.rs                # Error types (AftError enum, thiserror)
+├── error.rs                # Error types (IftError enum, thiserror)
 ├── engine.rs               # Transfer engine (parallel chunks, retry, checksums)
 ├── output.rs               # Structured + colorized output formatting
 ├── ontology.rs             # Agentic JSON-LD ontology schema
@@ -655,19 +655,19 @@ pub trait ProtocolHandler: Send + Sync {
     fn supports_ranges(&self) -> bool;
     fn supports_resume(&self) -> bool;
 
-    async fn head(&self, url: &str, opts: &ProtocolOptions) -> AftResult<ResourceMetadata>;
-    async fn download(&self, url: &str, dest: &Path, opts: &ProtocolOptions, ...) -> AftResult<u64>;
-    async fn download_range(&self, url: &str, start: u64, end: u64, opts: &ProtocolOptions) -> AftResult<Vec<u8>>;
-    async fn upload(&self, source: &Path, url: &str, opts: &ProtocolOptions, ...) -> AftResult<u64>;
-    async fn list(&self, url: &str, opts: &ProtocolOptions) -> AftResult<Vec<DirectoryEntry>>;
+    async fn head(&self, url: &str, opts: &ProtocolOptions) -> IftResult<ResourceMetadata>;
+    async fn download(&self, url: &str, dest: &Path, opts: &ProtocolOptions, ...) -> IftResult<u64>;
+    async fn download_range(&self, url: &str, start: u64, end: u64, opts: &ProtocolOptions) -> IftResult<Vec<u8>>;
+    async fn upload(&self, source: &Path, url: &str, opts: &ProtocolOptions, ...) -> IftResult<u64>;
+    async fn list(&self, url: &str, opts: &ProtocolOptions) -> IftResult<Vec<DirectoryEntry>>;
 
     // Extended operations (with default implementations)
     fn supports_extended_ops(&self) -> bool;
-    async fn delete(&self, url: &str, recursive: bool, opts: &ProtocolOptions) -> AftResult<()>;
-    async fn rename(&self, from: &str, to: &str, opts: &ProtocolOptions) -> AftResult<()>;
-    async fn mkdir(&self, url: &str, opts: &ProtocolOptions) -> AftResult<()>;
-    async fn exists(&self, url: &str, opts: &ProtocolOptions) -> AftResult<bool>;
-    async fn list_recursive(&self, url: &str, opts: &ProtocolOptions, max_depth: usize) -> AftResult<Vec<DirectoryEntry>>;
+    async fn delete(&self, url: &str, recursive: bool, opts: &ProtocolOptions) -> IftResult<()>;
+    async fn rename(&self, from: &str, to: &str, opts: &ProtocolOptions) -> IftResult<()>;
+    async fn mkdir(&self, url: &str, opts: &ProtocolOptions) -> IftResult<()>;
+    async fn exists(&self, url: &str, opts: &ProtocolOptions) -> IftResult<bool>;
+    async fn list_recursive(&self, url: &str, opts: &ProtocolOptions, max_depth: usize) -> IftResult<Vec<DirectoryEntry>>;
 }
 ```
 
@@ -696,26 +696,26 @@ pub trait ProtocolHandler: Send + Sync {
 ### Measured Head-to-Head (Lossy Links)
 
 50 MB file, pushed across a `tc` netem–shaped link (both directions), median of
-3–6 runs, byte-verified. Contenders: AFT (this repo),
+3–6 runs, byte-verified. Contenders: IFT (this repo),
 [ATP](https://github.com/Dicklesworthstone/atp) in TCP and RaptorQ modes, and
 rsync over ssh. `timeout` = no run completed within the cell's limit.
 
-| Regime                              | aft (TCP) | aft `--fec` | atp (TCP) | atp (RaptorQ) | rsync (ssh) |
+| Regime                              | ift (TCP) | ift `--fec` | atp (TCP) | atp (RaptorQ) | rsync (ssh) |
 | ----------------------------------- | --------- | ----------- | --------- | ------------- | ----------- |
 | **good** (200 Mbit, 25 ms, 0.1%)    | **2.8 s** | 3.4 s       | 3.0 s     | 3.0 s         | 3.3 s       |
 | **bad** (50 Mbit, 80 ms, 2% loss)   | 14.8 s    | **13.0 s**  | timeout   | timeout       | timeout     |
 | **broken** (10 Mbit, 200 ms, 10% loss + reorder) | timeout | **103 s** | timeout | timeout   | timeout     |
 
 `good` is a median of 9 runs (high-variance regime), `bad`/`broken` medians of
-3–6 runs. Three regimes, three outcomes — AFT is fastest or the only finisher
+3–6 runs. Three regimes, three outcomes — IFT is fastest or the only finisher
 in every one:
 
-- **Clean (`good`)** — AFT's TCP path is the **fastest tool measured, 2.8 s**,
+- **Clean (`good`)** — IFT's TCP path is the **fastest tool measured, 2.8 s**,
   ahead of atp (3.0 s) and rsync (3.3 s), and the most consistent (all 9 runs
   in 2.74–2.92 s). It requests **BBR** congestion control by default
   (`AFT_TCP_CC` to override); BBR's pacing keeps the tail tight where CUBIC's
   response to the occasional random drop makes the other tools bimodal.
-- **Moderate loss (`bad`)** — CUBIC-based tools collapse to a timeout; AFT's
+- **Moderate loss (`bad`)** — CUBIC-based tools collapse to a timeout; IFT's
   BBR TCP path finishes in ~15 s at ~47 MB RSS (or `--fec` in ~13 s).
 - **Severe loss (`broken`)** — reliable TCP cannot drain at all, even with BBR:
   every lost byte still costs a retransmit round trip. `--fec` is the **only**
@@ -726,7 +726,7 @@ in every one:
 Every number is reproducible from the netem harness and raw result data in
 [`bench/`](bench/); full methodology, per-run figures, and caveats are in
 [docs/BENCHMARKS.md](docs/BENCHMARKS.md). (TCP-path results assume the `tcp_bbr`
-kernel module is loaded; where BBR is unavailable AFT falls back to the kernel
+kernel module is loaded; where BBR is unavailable IFT falls back to the kernel
 default and lossy links need `--fec`.)
 
 ## FIPS 140-3 Build
@@ -762,15 +762,15 @@ This software contains cryptographic functionality and is subject to U.S. export
 | QUIC (quinn)          | Varies          | Transport encryption                                |
 | Neural network cipher | Model-dependent | Experimental MLP autoencoder encryption             |
 
-As publicly available open-source encryption source code, AFT is eligible for export under License Exception ENC (§740.17(b)(1)), subject to embargoed destinations and denied/entity-listed parties (EAR Part 746 and Supplement No. 4 to Part 744). License Exception ENC requires a one-time notification email to the U.S. Bureau of Industry and Security (BIS) and the National Security Agency (NSA) under EAR §742.15(b) at the time the source code is made publicly available; that filing is the responsibility of the distributor making it public.
+As publicly available open-source encryption source code, IFT is eligible for export under License Exception ENC (§740.17(b)(1)), subject to embargoed destinations and denied/entity-listed parties (EAR Part 746 and Supplement No. 4 to Part 744). License Exception ENC requires a one-time notification email to the U.S. Bureau of Industry and Security (BIS) and the National Security Agency (NSA) under EAR §742.15(b) at the time the source code is made publicly available; that filing is the responsibility of the distributor making it public.
 
 **This notice does not constitute legal advice.** Consult an export control attorney before publicly distributing this software.
 
 ## License
 
-AFT is **dual-licensed** — see [LICENSING.md](LICENSING.md) for the full explanation:
+IFT is **dual-licensed** — see [LICENSING.md](LICENSING.md) for the full explanation:
 
-- **AGPL-3.0-or-later** (default) — free for open-source use under the [GNU Affero General Public License v3.0](LICENSE). Note the AGPL's network clause (§13): if you run a modified AFT as a network service, you must offer that service's users the corresponding source.
+- **AGPL-3.0-or-later** (default) — free for open-source use under the [GNU Affero General Public License v3.0](LICENSE). Note the AGPL's network clause (§13): if you run a modified IFT as a network service, you must offer that service's users the corresponding source.
 - **Commercial License** — for proprietary or SaaS use **without** AGPL's copyleft/source-disclosure obligations. See [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) and contact **licensing@nervosys.ai**.
 
 Copyright © 2024–2026 Nervosys, LLC. `SPDX-License-Identifier: AGPL-3.0-or-later`.

@@ -6,7 +6,7 @@
 
 Report them privately via one of:
 
-- GitHub's [private vulnerability reporting](https://github.com/nervosys/AgenticFileTransfer/security/advisories/new)
+- GitHub's [private vulnerability reporting](https://github.com/nervosys/IronFileTransfer/security/advisories/new)
   ("Report a vulnerability" under the repository's **Security** tab), or
 - email **security@nervosys.ai**.
 
@@ -24,7 +24,7 @@ service disruption while researching.
 
 ## Supported versions
 
-AFT is released from `master`. Security fixes land on the latest released
+IFT is released from `master`. Security fixes land on the latest released
 version. Until a `1.x` long-term line is designated, only the most recent release
 receives security updates.
 

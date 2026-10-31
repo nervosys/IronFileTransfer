@@ -16,7 +16,7 @@ use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, TcpStream};
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 // ── Transport trait ─────────────────────────────────────────────────────────
 
@@ -31,14 +31,14 @@ pub struct TransportStream {
 #[async_trait::async_trait]
 pub trait TransportListener: Send + Sync {
     /// Accept the next incoming connection.
-    async fn accept(&self) -> AftResult<TransportStream>;
+    async fn accept(&self) -> IftResult<TransportStream>;
 }
 
 /// Trait for transport connectors (client-side).
 #[async_trait::async_trait]
 pub trait TransportConnector: Send + Sync {
     /// Connect to the specified address.
-    async fn connect(&self, addr: &str) -> AftResult<TransportStream>;
+    async fn connect(&self, addr: &str) -> IftResult<TransportStream>;
 }
 
 // ── TCP Transport ───────────────────────────────────────────────────────────
@@ -164,23 +164,23 @@ pub struct TcpTransportListener {
 }
 
 impl TcpTransportListener {
-    pub async fn bind(addr: &str) -> AftResult<Self> {
+    pub async fn bind(addr: &str) -> IftResult<Self> {
         let listener = TcpListener::bind(addr)
             .await
-            .map_err(|e| AftError::Other(format!("TCP bind {}: {}", addr, e)))?;
+            .map_err(|e| IftError::Other(format!("TCP bind {}: {}", addr, e)))?;
         Ok(Self { listener })
     }
 
-    pub fn local_addr(&self) -> AftResult<SocketAddr> {
+    pub fn local_addr(&self) -> IftResult<SocketAddr> {
         self.listener
             .local_addr()
-            .map_err(|e| AftError::Other(format!("local_addr: {}", e)))
+            .map_err(|e| IftError::Other(format!("local_addr: {}", e)))
     }
 }
 
 #[async_trait::async_trait]
 impl TransportListener for TcpTransportListener {
-    async fn accept(&self) -> AftResult<TransportStream> {
+    async fn accept(&self) -> IftResult<TransportStream> {
         let (stream, addr) = self.listener.accept().await?;
         stream.set_nodelay(true).ok();
         tune_tcp_socket(&stream);
@@ -197,10 +197,10 @@ pub struct TcpTransportConnector;
 
 #[async_trait::async_trait]
 impl TransportConnector for TcpTransportConnector {
-    async fn connect(&self, addr: &str) -> AftResult<TransportStream> {
+    async fn connect(&self, addr: &str) -> IftResult<TransportStream> {
         let stream = TcpStream::connect(addr)
             .await
-            .map_err(|e| AftError::ConnectionFailed(format!("TCP connect {}: {}", addr, e)))?;
+            .map_err(|e| IftError::ConnectionFailed(format!("TCP connect {}: {}", addr, e)))?;
         stream.set_nodelay(true).ok();
         tune_tcp_socket(&stream);
         let peer = stream.peer_addr().unwrap_or_else(|_| {
@@ -222,29 +222,29 @@ pub struct WsTransportListener {
 }
 
 impl WsTransportListener {
-    pub async fn bind(addr: &str) -> AftResult<Self> {
+    pub async fn bind(addr: &str) -> IftResult<Self> {
         let listener = TcpListener::bind(addr)
             .await
-            .map_err(|e| AftError::Other(format!("WS bind {}: {}", addr, e)))?;
+            .map_err(|e| IftError::Other(format!("WS bind {}: {}", addr, e)))?;
         Ok(Self { listener })
     }
 
-    pub fn local_addr(&self) -> AftResult<SocketAddr> {
+    pub fn local_addr(&self) -> IftResult<SocketAddr> {
         self.listener
             .local_addr()
-            .map_err(|e| AftError::Other(format!("local_addr: {}", e)))
+            .map_err(|e| IftError::Other(format!("local_addr: {}", e)))
     }
 }
 
 #[async_trait::async_trait]
 impl TransportListener for WsTransportListener {
-    async fn accept(&self) -> AftResult<TransportStream> {
+    async fn accept(&self) -> IftResult<TransportStream> {
         let (stream, addr) = self.listener.accept().await?;
         stream.set_nodelay(true).ok();
 
         let ws = tokio_tungstenite::accept_async(stream)
             .await
-            .map_err(|e| AftError::ConnectionFailed(format!("WS handshake: {}", e)))?;
+            .map_err(|e| IftError::ConnectionFailed(format!("WS handshake: {}", e)))?;
 
         let (wr, rd) = futures::StreamExt::split(ws);
 
@@ -265,11 +265,11 @@ pub struct WsTransportConnector;
 
 #[async_trait::async_trait]
 impl TransportConnector for WsTransportConnector {
-    async fn connect(&self, addr: &str) -> AftResult<TransportStream> {
+    async fn connect(&self, addr: &str) -> IftResult<TransportStream> {
         let url = format!("ws://{}", addr);
         let (ws, _) = tokio_tungstenite::connect_async(&url)
             .await
-            .map_err(|e| AftError::ConnectionFailed(format!("WS connect {}: {}", addr, e)))?;
+            .map_err(|e| IftError::ConnectionFailed(format!("WS connect {}: {}", addr, e)))?;
 
         let peer = SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED), 0);
 
@@ -425,29 +425,29 @@ impl QuicTransportListener {
     }
 
     /// Create a QUIC listener with a self-signed certificate for development.
-    pub async fn bind(addr: &str) -> AftResult<Self> {
+    pub async fn bind(addr: &str) -> IftResult<Self> {
         let addr: SocketAddr = addr
             .parse()
-            .map_err(|e| AftError::Other(format!("Invalid address {}: {}", addr, e)))?;
+            .map_err(|e| IftError::Other(format!("Invalid address {}: {}", addr, e)))?;
 
         let (server_config, _cert) = Self::make_server_config()?;
         let endpoint = quinn::Endpoint::server(server_config, addr)
-            .map_err(|e| AftError::Other(format!("QUIC bind {}: {}", addr, e)))?;
+            .map_err(|e| IftError::Other(format!("QUIC bind {}: {}", addr, e)))?;
 
         Ok(Self { endpoint })
     }
 
-    pub fn local_addr(&self) -> AftResult<SocketAddr> {
+    pub fn local_addr(&self) -> IftResult<SocketAddr> {
         self.endpoint
             .local_addr()
-            .map_err(|e| AftError::Other(format!("local_addr: {}", e)))
+            .map_err(|e| IftError::Other(format!("local_addr: {}", e)))
     }
 
-    fn make_server_config() -> AftResult<(quinn::ServerConfig, Vec<u8>)> {
+    fn make_server_config() -> IftResult<(quinn::ServerConfig, Vec<u8>)> {
         let _ = ic_rustls::provider().install_default();
 
         let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()])
-            .map_err(|e| AftError::Other(format!("QUIC cert gen: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("QUIC cert gen: {}", e)))?;
         let cert_der = cert.cert.der().to_vec();
         let key_der = rustls::pki_types::PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der());
 
@@ -455,10 +455,10 @@ impl QuicTransportListener {
             vec![rustls::pki_types::CertificateDer::from(cert_der.clone())],
             rustls::pki_types::PrivateKeyDer::Pkcs8(key_der),
         )
-        .map_err(|e| AftError::Other(format!("QUIC server config: {}", e)))?;
+        .map_err(|e| IftError::Other(format!("QUIC server config: {}", e)))?;
 
         let transport_config = Arc::get_mut(&mut server_config.transport)
-            .ok_or_else(|| AftError::Other("QUIC transport config not exclusively owned".into()))?;
+            .ok_or_else(|| IftError::Other("QUIC transport config not exclusively owned".into()))?;
         transport_config.max_concurrent_bidi_streams(100u32.into());
         transport_config.max_concurrent_uni_streams(0u32.into());
 
@@ -468,23 +468,23 @@ impl QuicTransportListener {
 
 #[async_trait::async_trait]
 impl TransportListener for QuicTransportListener {
-    async fn accept(&self) -> AftResult<TransportStream> {
+    async fn accept(&self) -> IftResult<TransportStream> {
         let incoming = self
             .endpoint
             .accept()
             .await
-            .ok_or_else(|| AftError::ConnectionFailed("QUIC endpoint closed".into()))?;
+            .ok_or_else(|| IftError::ConnectionFailed("QUIC endpoint closed".into()))?;
 
         let connection = incoming
             .await
-            .map_err(|e| AftError::ConnectionFailed(format!("QUIC accept: {}", e)))?;
+            .map_err(|e| IftError::ConnectionFailed(format!("QUIC accept: {}", e)))?;
 
         let peer_addr = connection.remote_address();
 
         let (send, recv) = connection
             .accept_bi()
             .await
-            .map_err(|e| AftError::ConnectionFailed(format!("QUIC accept_bi: {}", e)))?;
+            .map_err(|e| IftError::ConnectionFailed(format!("QUIC accept_bi: {}", e)))?;
 
         Ok(TransportStream {
             reader: Box::new(recv),
@@ -506,7 +506,7 @@ impl QuicTransportConnector {
 
 #[async_trait::async_trait]
 impl TransportConnector for QuicTransportConnector {
-    async fn connect(&self, addr: &str) -> AftResult<TransportStream> {
+    async fn connect(&self, addr: &str) -> IftResult<TransportStream> {
         let _ = ic_rustls::provider().install_default();
 
         let mut client_config = if self.insecure {
@@ -516,7 +516,7 @@ impl TransportConnector for QuicTransportConnector {
                 .with_no_client_auth();
             quinn::ClientConfig::new(Arc::new(
                 quinn::crypto::rustls::QuicClientConfig::try_from(crypto)
-                    .map_err(|e| AftError::Other(format!("QUIC client config: {}", e)))?,
+                    .map_err(|e| IftError::Other(format!("QUIC client config: {}", e)))?,
             ))
         } else {
             let mut root_store = rustls::RootCertStore::empty();
@@ -526,7 +526,7 @@ impl TransportConnector for QuicTransportConnector {
                 .with_no_client_auth();
             quinn::ClientConfig::new(Arc::new(
                 quinn::crypto::rustls::QuicClientConfig::try_from(crypto)
-                    .map_err(|e| AftError::Other(format!("QUIC client config: {}", e)))?,
+                    .map_err(|e| IftError::Other(format!("QUIC client config: {}", e)))?,
             ))
         };
 
@@ -536,28 +536,28 @@ impl TransportConnector for QuicTransportConnector {
 
         let socket_addr: SocketAddr = addr
             .parse()
-            .map_err(|e| AftError::Other(format!("Invalid address {}: {}", addr, e)))?;
+            .map_err(|e| IftError::Other(format!("Invalid address {}: {}", addr, e)))?;
 
         let mut endpoint = quinn::Endpoint::client(
             "0.0.0.0:0"
                 .parse()
-                .map_err(|e| AftError::Other(format!("Invalid bind address: {}", e)))?,
+                .map_err(|e| IftError::Other(format!("Invalid bind address: {}", e)))?,
         )
-        .map_err(|e| AftError::Other(format!("QUIC client endpoint: {}", e)))?;
+        .map_err(|e| IftError::Other(format!("QUIC client endpoint: {}", e)))?;
         endpoint.set_default_client_config(client_config);
 
         let connection = endpoint
             .connect(socket_addr, "localhost")
-            .map_err(|e| AftError::ConnectionFailed(format!("QUIC connect: {}", e)))?
+            .map_err(|e| IftError::ConnectionFailed(format!("QUIC connect: {}", e)))?
             .await
-            .map_err(|e| AftError::ConnectionFailed(format!("QUIC connect: {}", e)))?;
+            .map_err(|e| IftError::ConnectionFailed(format!("QUIC connect: {}", e)))?;
 
         let peer = connection.remote_address();
 
         let (send, recv) = connection
             .open_bi()
             .await
-            .map_err(|e| AftError::ConnectionFailed(format!("QUIC open_bi: {}", e)))?;
+            .map_err(|e| IftError::ConnectionFailed(format!("QUIC open_bi: {}", e)))?;
 
         Ok(TransportStream {
             reader: Box::new(recv),

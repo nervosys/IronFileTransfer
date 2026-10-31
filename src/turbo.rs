@@ -32,7 +32,7 @@ use std::time::Instant;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::engine::{ProgressCb, TransferResult};
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 use crate::protocols::{ProtocolHandler, ProtocolOptions};
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -327,7 +327,7 @@ pub async fn turbo_upload(
     content_type: Option<&str>,
     method: Option<&str>,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<TransferResult> {
+) -> IftResult<TransferResult> {
     let start = Instant::now();
 
     let cb = progress_cb.map(|cb| {
@@ -365,7 +365,7 @@ pub async fn turbo_local_copy(
     source: &Path,
     dest: &Path,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<TransferResult> {
+) -> IftResult<TransferResult> {
     let start = Instant::now();
     let file_size = tokio::fs::metadata(source).await?.len();
 
@@ -410,21 +410,21 @@ async fn turbo_local_copy_kernel(
     dest: &Path,
     file_size: u64,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<u64> {
+) -> IftResult<u64> {
     let src = source.to_path_buf();
     let dst = dest.to_path_buf();
     let cb = progress_cb;
 
     tokio::task::spawn_blocking(move || {
         let copied = std::fs::copy(&src, &dst)
-            .map_err(|e| AftError::Other(format!("kernel copy: {}", e)))?;
+            .map_err(|e| IftError::Other(format!("kernel copy: {}", e)))?;
         if let Some(ref cb) = cb {
             cb(copied, Some(file_size));
         }
         Ok(copied)
     })
     .await
-    .map_err(|e| AftError::Other(format!("spawn_blocking: {}", e)))?
+    .map_err(|e| IftError::Other(format!("spawn_blocking: {}", e)))?
 }
 
 /// Local copy using mmap + pipelined writes.
@@ -433,7 +433,7 @@ async fn turbo_local_copy_mmap(
     dest: &Path,
     file_size: u64,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<u64> {
+) -> IftResult<u64> {
     // Move to blocking thread for mmap operations
     let src = source.to_path_buf();
     let dst = dest.to_path_buf();
@@ -466,7 +466,7 @@ async fn turbo_local_copy_mmap(
                 )
             };
             if ptr == libc::MAP_FAILED {
-                return Err(AftError::Other("mmap failed".to_string()));
+                return Err(IftError::Other("mmap failed".to_string()));
             }
             // Advise sequential access
             unsafe { libc::madvise(ptr, file_size as usize, libc::MADV_SEQUENTIAL) };
@@ -505,7 +505,7 @@ async fn turbo_local_copy_mmap(
                 )
             };
             if mapping.is_null() {
-                return Err(AftError::Other("CreateFileMapping failed".to_string()));
+                return Err(IftError::Other("CreateFileMapping failed".to_string()));
             }
 
             let ptr = unsafe {
@@ -519,7 +519,7 @@ async fn turbo_local_copy_mmap(
             };
             if ptr.Value.is_null() {
                 unsafe { windows_sys::Win32::Foundation::CloseHandle(mapping) };
-                return Err(AftError::Other("MapViewOfFile failed".to_string()));
+                return Err(IftError::Other("MapViewOfFile failed".to_string()));
             }
 
             let slice =
@@ -544,7 +544,7 @@ async fn turbo_local_copy_mmap(
         Ok(file_size)
     })
     .await
-    .map_err(|e| AftError::Other(format!("spawn_blocking: {}", e)))?
+    .map_err(|e| IftError::Other(format!("spawn_blocking: {}", e)))?
 }
 
 /// Fallback local copy with 4 MB buffers and write-behind.
@@ -553,7 +553,7 @@ async fn turbo_local_copy_buffered(
     dest: &Path,
     file_size: u64,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<u64> {
+) -> IftResult<u64> {
     let mut src = tokio::fs::File::open(source).await?;
     let mut dst = tokio::fs::File::create(dest).await?;
 
@@ -635,7 +635,7 @@ pub async fn turbo_download_auto(
     opts: &ProtocolOptions,
     turbo_config: &TurboConfig,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<(TransferResult, LinkProfile)> {
+) -> IftResult<(TransferResult, LinkProfile)> {
     // Detect localhost by URL — skip expensive HEAD probe for same-machine transfers
     let url_is_local =
         url.contains("://localhost") || url.contains("://127.0.0.1") || url.contains("://[::1]");
@@ -720,7 +720,7 @@ pub async fn turbo_upload_auto(
     content_type: Option<&str>,
     method: Option<&str>,
     progress_cb: Option<ProgressCb>,
-) -> AftResult<(TransferResult, LinkProfile)> {
+) -> IftResult<(TransferResult, LinkProfile)> {
     let profile = LinkProfile::default();
 
     // Delegates directly to turbo_upload without an expensive link probe; the

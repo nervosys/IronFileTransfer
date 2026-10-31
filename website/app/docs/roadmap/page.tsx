@@ -7,7 +7,7 @@ export default function RoadmapPage() {
   return (
     <DocPage
       title="Roadmap"
-      subtitle="Implementation progress across all phases of AFT development"
+      subtitle="Implementation progress across all phases of IFT development"
       content={content}
     />
   );

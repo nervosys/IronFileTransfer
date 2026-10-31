@@ -1,7 +1,7 @@
 import { DocPage } from "@/components/DocPage";
 
 const content = `
-AFT provides 16 subcommands organized into four groups: **transfers**, **file operations**, **crypto**, and **system**.
+IFT provides 16 subcommands organized into four groups: **transfers**, **file operations**, **crypto**, and **system**.
 
 ---
 
@@ -34,12 +34,12 @@ These flags apply to every command.
 
 ## Transfer Commands
 
-### \`aft get\` — Download a file
+### \`ift get\` — Download a file
 
 Download a file from any supported protocol.
 
 \`\`\`bash
-aft get <URL> [OPTIONS]
+ift get <URL> [OPTIONS]
 \`\`\`
 
 | Option | Short | Default | Description |
@@ -57,21 +57,21 @@ aft get <URL> [OPTIONS]
 **Examples:**
 
 \`\`\`bash
-aft get https://example.com/file.tar.gz
-aft get https://example.com/file.tar.gz -o ./downloads/
-aft get https://example.com/release.tar.gz --checksum sha256 --checksum-value e3b0c44...
-aft get aftp://server:2600/data.bin --turbo --streams 64
-aft get https://example.com/large.iso --resume
+ift get https://example.com/file.tar.gz
+ift get https://example.com/file.tar.gz -o ./downloads/
+ift get https://example.com/release.tar.gz --checksum sha256 --checksum-value e3b0c44...
+ift get aftp://server:2600/data.bin --turbo --streams 64
+ift get https://example.com/large.iso --resume
 \`\`\`
 
 ---
 
-### \`aft put\` — Upload a file
+### \`ift put\` — Upload a file
 
 Upload a local file to a remote destination.
 
 \`\`\`bash
-aft put <SOURCE> <URL> [OPTIONS]
+ift put <SOURCE> <URL> [OPTIONS]
 \`\`\`
 
 | Option | Short | Default | Description |
@@ -85,19 +85,19 @@ aft put <SOURCE> <URL> [OPTIONS]
 **Examples:**
 
 \`\`\`bash
-aft put ./report.pdf https://upload.example.com/files/
-aft put ./data.json https://api.example.com/upload --method POST --content-type application/json
-aft put ./report.pdf aftp://server:2600/report.pdf
+ift put ./report.pdf https://upload.example.com/files/
+ift put ./data.json https://api.example.com/upload --method POST --content-type application/json
+ift put ./report.pdf aftp://server:2600/report.pdf
 \`\`\`
 
 ---
 
-### \`aft copy\` — Copy files between locations
+### \`ift copy\` — Copy files between locations
 
 Copy files between any two locations — local or remote.
 
 \`\`\`bash
-aft copy <SOURCE> <DESTINATION> [OPTIONS]
+ift copy <SOURCE> <DESTINATION> [OPTIONS]
 \`\`\`
 
 | Option | Short | Default | Description |
@@ -111,19 +111,19 @@ aft copy <SOURCE> <DESTINATION> [OPTIONS]
 **Examples:**
 
 \`\`\`bash
-aft copy ./src/ ./backup/src/
-aft copy -r ./project/ sftp://server/backups/project/
-aft copy -r ./data/ ./out/ --include "*.csv" --exclude "temp/*"
+ift copy ./src/ ./backup/src/
+ift copy -r ./project/ sftp://server/backups/project/
+ift copy -r ./data/ ./out/ --include "*.csv" --exclude "temp/*"
 \`\`\`
 
 ---
 
-### \`aft sync\` — Synchronize directories
+### \`ift sync\` — Synchronize directories
 
 One-way directory synchronization with rsync/rclone-class features.
 
 \`\`\`bash
-aft sync <SOURCE> <DESTINATION> [OPTIONS]
+ift sync <SOURCE> <DESTINATION> [OPTIONS]
 \`\`\`
 
 | Option | Short | Default | Description |
@@ -142,21 +142,21 @@ aft sync <SOURCE> <DESTINATION> [OPTIONS]
 **Examples:**
 
 \`\`\`bash
-aft sync ./project/ sftp://server/backup/project/
-aft sync ./src/ ./dst/ --dry-run
-aft sync ./src/ ./dst/ --delete
-aft sync ./src/ ./dst/ --include "*.rs" --exclude "target/*"
-aft sync ./src/ ./dst/ --compare checksum
+ift sync ./project/ sftp://server/backup/project/
+ift sync ./src/ ./dst/ --dry-run
+ift sync ./src/ ./dst/ --delete
+ift sync ./src/ ./dst/ --include "*.rs" --exclude "target/*"
+ift sync ./src/ ./dst/ --compare checksum
 \`\`\`
 
 ---
 
-### \`aft head\` — Inspect resource metadata
+### \`ift head\` — Inspect resource metadata
 
 Retrieve metadata (size, type, headers) without downloading.
 
 \`\`\`bash
-aft head <URL> [OPTIONS]
+ift head <URL> [OPTIONS]
 \`\`\`
 
 | Option | Short | Default | Description |
@@ -167,20 +167,20 @@ aft head <URL> [OPTIONS]
 **Examples:**
 
 \`\`\`bash
-aft head https://example.com/file.tar.gz
-aft head aftp://server:2600/data.bin
+ift head https://example.com/file.tar.gz
+ift head aftp://server:2600/data.bin
 \`\`\`
 
 ---
 
 ## File Operation Commands
 
-### \`aft ls\` — List directory contents
+### \`ift ls\` — List directory contents
 
 List files and directories at a local or remote path.
 
 \`\`\`bash
-aft ls <URL> [OPTIONS]
+ift ls <URL> [OPTIONS]
 \`\`\`
 
 | Option | Short | Default | Description |
@@ -191,36 +191,36 @@ aft ls <URL> [OPTIONS]
 **Examples:**
 
 \`\`\`bash
-aft ls ./my-directory/
-aft ls aftp://server:2600/
-aft ls -r -l ./project/
+ift ls ./my-directory/
+ift ls aftp://server:2600/
+ift ls -r -l ./project/
 \`\`\`
 
 ---
 
-### \`aft mv\` — Move or rename
+### \`ift mv\` — Move or rename
 
 Move or rename files and directories across protocols.
 
 \`\`\`bash
-aft mv <SOURCE> <DESTINATION>
+ift mv <SOURCE> <DESTINATION>
 \`\`\`
 
 **Examples:**
 
 \`\`\`bash
-aft mv ./old-name.txt ./new-name.txt
-aft mv ./file.pdf sftp://server/archive/file.pdf
+ift mv ./old-name.txt ./new-name.txt
+ift mv ./file.pdf sftp://server/archive/file.pdf
 \`\`\`
 
 ---
 
-### \`aft rm\` — Remove files and directories
+### \`ift rm\` — Remove files and directories
 
 Delete files or directories at any supported location.
 
 \`\`\`bash
-aft rm <URL> [OPTIONS]
+ift rm <URL> [OPTIONS]
 \`\`\`
 
 | Option | Short | Default | Description |
@@ -231,35 +231,35 @@ aft rm <URL> [OPTIONS]
 **Examples:**
 
 \`\`\`bash
-aft rm ./temp-file.txt
-aft rm ./build-output/ --recursive
+ift rm ./temp-file.txt
+ift rm ./build-output/ --recursive
 \`\`\`
 
 ---
 
-### \`aft mkdir\` — Create directories
+### \`ift mkdir\` — Create directories
 
 Create directories, including parent directories, at any location.
 
 \`\`\`bash
-aft mkdir <URL>
+ift mkdir <URL>
 \`\`\`
 
 **Examples:**
 
 \`\`\`bash
-aft mkdir ./new-dir/sub-dir/
-aft mkdir sftp://server/uploads/batch-001/
+ift mkdir ./new-dir/sub-dir/
+ift mkdir sftp://server/uploads/batch-001/
 \`\`\`
 
 ---
 
-### \`aft checksum\` — Compute file checksum
+### \`ift checksum\` — Compute file checksum
 
 Compute a cryptographic hash of a local file.
 
 \`\`\`bash
-aft checksum <PATH> [OPTIONS]
+ift checksum <PATH> [OPTIONS]
 \`\`\`
 
 | Option | Short | Default | Description |
@@ -269,20 +269,20 @@ aft checksum <PATH> [OPTIONS]
 **Examples:**
 
 \`\`\`bash
-aft checksum ./file.tar.gz --algorithm sha256
-aft checksum ./release.bin -a sha512
+ift checksum ./file.tar.gz --algorithm sha256
+ift checksum ./release.bin -a sha512
 \`\`\`
 
 ---
 
 ## Server Command
 
-### \`aft serve\` — Start an AFTP file server
+### \`ift serve\` — Start an AFTP file server
 
 Serve a directory over AFTP with optional TLS, authentication, and compression.
 
 \`\`\`bash
-aft serve <ROOT> [OPTIONS]
+ift serve <ROOT> [OPTIONS]
 \`\`\`
 
 | Option | Default | Description |
@@ -302,44 +302,44 @@ aft serve <ROOT> [OPTIONS]
 
 \`\`\`bash
 # Basic server
-aft serve ./files
+ift serve ./files
 
 # With TLS and authentication
-aft serve ./files --tls-cert cert.pem --tls-key key.pem --auth-token SECRET
+ift serve ./files --tls-cert cert.pem --tls-key key.pem --auth-token SECRET
 
 # HMAC challenge/response auth with compression
-aft serve ./files --auth-token SECRET --auth-challenge --compression
+ift serve ./files --auth-token SECRET --auth-challenge --compression
 
 # QUIC transport
-aft serve ./files --transport quic --tls-cert cert.pem --tls-key key.pem
+ift serve ./files --transport quic --tls-cert cert.pem --tls-key key.pem
 \`\`\`
 
 ---
 
 ## Crypto Commands
 
-All crypto operations are under the \`aft crypto\` subcommand.
+All crypto operations are under the \`ift crypto\` subcommand.
 
-### \`aft crypto keygen\` — Generate a key pair
+### \`ift crypto keygen\` — Generate a key pair
 
 Generate a post-quantum key pair (Kyber1024 / ML-KEM).
 
 \`\`\`bash
-aft crypto keygen [OPTIONS]
+ift crypto keygen [OPTIONS]
 \`\`\`
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
-| \`--output\` | \`-o\` | \`aft_key\` | Output base name (creates \`.pub\` and \`.sec\` files) |
+| \`--output\` | \`-o\` | \`ift_key\` | Output base name (creates \`.pub\` and \`.sec\` files) |
 
 ---
 
-### \`aft crypto train\` — Train a neural cipher
+### \`ift crypto train\` — Train a neural cipher
 
 Train a neural network cipher model (MLP autoencoder).
 
 \`\`\`bash
-aft crypto train [OPTIONS]
+ift crypto train [OPTIONS]
 \`\`\`
 
 | Option | Short | Default | Description |
@@ -351,12 +351,12 @@ aft crypto train [OPTIONS]
 
 ---
 
-### \`aft crypto encrypt\` — Encrypt a file
+### \`ift crypto encrypt\` — Encrypt a file
 
 Encrypt a file using PQC, neural, or hybrid mode.
 
 \`\`\`bash
-aft crypto encrypt <INPUT> [OPTIONS]
+ift crypto encrypt <INPUT> [OPTIONS]
 \`\`\`
 
 | Option | Short | Default | Description |
@@ -368,19 +368,19 @@ aft crypto encrypt <INPUT> [OPTIONS]
 **Examples:**
 
 \`\`\`bash
-aft crypto encrypt -i secret.pdf -o secret.enc --method pqc -k ./keys/aft_public.key
-aft crypto encrypt -i data.bin --method neural -k ./model/cipher.nn
-aft crypto encrypt -i payload.tar --method hybrid -k ./keys/aft_public.key
+ift crypto encrypt -i secret.pdf -o secret.enc --method pqc -k ./keys/aft_public.key
+ift crypto encrypt -i data.bin --method neural -k ./model/cipher.nn
+ift crypto encrypt -i payload.tar --method hybrid -k ./keys/aft_public.key
 \`\`\`
 
 ---
 
-### \`aft crypto decrypt\` — Decrypt a file
+### \`ift crypto decrypt\` — Decrypt a file
 
 Decrypt a previously encrypted file.
 
 \`\`\`bash
-aft crypto decrypt <INPUT> [OPTIONS]
+ift crypto decrypt <INPUT> [OPTIONS]
 \`\`\`
 
 | Option | Short | Default | Description |
@@ -392,26 +392,26 @@ aft crypto decrypt <INPUT> [OPTIONS]
 
 ## Plugin Commands
 
-Manage runtime-loadable protocol handler plugins. All plugins are under \`aft plugin\`.
+Manage runtime-loadable protocol handler plugins. All plugins are under \`ift plugin\`.
 
-### \`aft plugin list\` — List loaded plugins
+### \`ift plugin list\` — List loaded plugins
 
 \`\`\`bash
-aft plugin list
+ift plugin list
 \`\`\`
 
-### \`aft plugin load\` — Load a plugin
+### \`ift plugin load\` — Load a plugin
 
 \`\`\`bash
-aft plugin load <PATH>
+ift plugin load <PATH>
 \`\`\`
 
 Loads a shared library (\`.dll\`, \`.so\`, \`.dylib\`) as a protocol handler. Plugins are SHA-256 signature verified.
 
-### \`aft plugin unload\` — Unload a plugin
+### \`ift plugin unload\` — Unload a plugin
 
 \`\`\`bash
-aft plugin unload <SCHEME>
+ift plugin unload <SCHEME>
 \`\`\`
 
 Unloads a plugin by its registered protocol scheme.
@@ -420,20 +420,20 @@ Unloads a plugin by its registered protocol scheme.
 
 ## Telemetry Commands
 
-Manage anonymous telemetry collection. All commands are under \`aft telemetry\`.
+Manage anonymous telemetry collection. All commands are under \`ift telemetry\`.
 
 | Command | Description |
 |---------|-------------|
-| \`aft telemetry status\` | Show telemetry status and collected data |
-| \`aft telemetry opt-in\` | Enable anonymous telemetry (off by default) |
-| \`aft telemetry opt-out\` | Disable anonymous telemetry (default) |
-| \`aft telemetry reset\` | Generate a new anonymous installation ID |
-| \`aft telemetry sync\` | Manually sync telemetry to remote endpoint |
-| \`aft telemetry clear\` | Clear local telemetry records |
-| \`aft telemetry export\` | Export telemetry records to a file |
-| \`aft telemetry config\` | Configure telemetry endpoint and API key |
+| \`ift telemetry status\` | Show telemetry status and collected data |
+| \`ift telemetry opt-in\` | Enable anonymous telemetry (off by default) |
+| \`ift telemetry opt-out\` | Disable anonymous telemetry (default) |
+| \`ift telemetry reset\` | Generate a new anonymous installation ID |
+| \`ift telemetry sync\` | Manually sync telemetry to remote endpoint |
+| \`ift telemetry clear\` | Clear local telemetry records |
+| \`ift telemetry export\` | Export telemetry records to a file |
+| \`ift telemetry config\` | Configure telemetry endpoint and API key |
 
-### \`aft telemetry export\` options
+### \`ift telemetry export\` options
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
@@ -441,7 +441,7 @@ Manage anonymous telemetry collection. All commands are under \`aft telemetry\`.
 | \`--format\` | \`-f\` | \`json\` | Export format: \`json\`, \`jsonl\` |
 | \`--limit\` | \`-n\` | all | Maximum records to export |
 
-### \`aft telemetry config\` options
+### \`ift telemetry config\` options
 
 | Option | Description |
 |--------|-------------|
@@ -452,22 +452,22 @@ Manage anonymous telemetry collection. All commands are under \`aft telemetry\`.
 
 ## Discovery Commands
 
-### \`aft schema\` — Output agentic ontology
+### \`ift schema\` — Output agentic ontology
 
-Outputs a JSON-LD ontology schema describing all AFT capabilities, operations, and data types for AI agent tool registration.
+Outputs a JSON-LD ontology schema describing all IFT capabilities, operations, and data types for AI agent tool registration.
 
 \`\`\`bash
-aft schema
-aft --agent schema
+ift schema
+ift --agent schema
 \`\`\`
 
-### \`aft capabilities\` — List available features
+### \`ift capabilities\` — List available features
 
 Lists all supported protocols, operations, and features in a structured format.
 
 \`\`\`bash
-aft capabilities
-aft --agent capabilities
+ift capabilities
+ift --agent capabilities
 \`\`\`
 
 ---

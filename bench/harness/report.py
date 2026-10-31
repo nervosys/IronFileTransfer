@@ -6,13 +6,13 @@ reported as its failure status, never silently dropped.
 """
 import json, statistics, sys, collections, os
 
-_bench_root = os.environ.get("BENCH_ROOT", os.path.join(os.path.expanduser("~"), "aft-bench"))
+_bench_root = os.environ.get("BENCH_ROOT", os.path.join(os.path.expanduser("~"), "ift-bench"))
 RAW = sys.argv[1] if len(sys.argv) > 1 else os.path.join(_bench_root, "results.jsonl")
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(_bench_root, "results.json")
 
 REGIMES = ["perfect", "good", "bad", "broken"]
 WORKLOADS = ["small_500k", "single_50m", "single_500m", "tree_2000x1k", "tree_400x1m"]
-TOOLS = ["rsync", "atp-tcp", "atp-rq", "aft", "aft-turbo"]
+TOOLS = ["rsync", "atp-tcp", "atp-rq", "ift", "ift-turbo"]
 
 REGIME_SPEC = {
     "perfect": "1gbit, 2ms delay, 0% loss",
@@ -72,12 +72,12 @@ for regime in REGIMES:
     if not present:
         continue
     print(f"\n=== {regime.upper()}  ({REGIME_SPEC[regime]}) ===")
-    hdr = f"{'workload':<14}" + "".join(f"{t:>11}" for t in TOOLS) + f"{'aft/atp-tcp':>13}{'aftT/atp-tcp':>14}"
+    hdr = f"{'workload':<14}" + "".join(f"{t:>11}" for t in TOOLS) + f"{'ift/atp-tcp':>13}{'iftT/atp-tcp':>14}"
     print(hdr)
     print("-" * len(hdr))
     for wl in present:
         row = f"{wl:<14}" + "".join(f"{cell(regime, wl, t):>11}" for t in TOOLS)
-        a, at, t_ = secs(regime, wl, "aft"), secs(regime, wl, "atp-tcp"), secs(regime, wl, "aft-turbo")
+        a, at, t_ = secs(regime, wl, "ift"), secs(regime, wl, "atp-tcp"), secs(regime, wl, "ift-turbo")
         row += f"{(f'{a/at:.2f}x' if a and at else 'n/a'):>13}"
         row += f"{(f'{t_/at:.2f}x' if t_ and at else 'n/a'):>14}"
         print(row)

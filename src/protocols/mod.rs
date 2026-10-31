@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 pub mod aftp;
 pub mod azure_blob;
@@ -131,7 +131,7 @@ pub trait ProtocolHandler: Send + Sync {
     fn supports_resume(&self) -> bool;
 
     /// Get metadata about a remote resource without downloading it
-    async fn head(&self, url: &str, opts: &ProtocolOptions) -> AftResult<ResourceMetadata>;
+    async fn head(&self, url: &str, opts: &ProtocolOptions) -> IftResult<ResourceMetadata>;
 
     /// Download a resource to a local file.
     /// `resume_from` specifies byte offset to resume from, if supported.
@@ -143,7 +143,7 @@ pub trait ProtocolHandler: Send + Sync {
         opts: &ProtocolOptions,
         resume_from: Option<u64>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64>;
+    ) -> IftResult<u64>;
 
     /// Download a specific byte range (for parallel chunked downloads)
     async fn download_range(
@@ -152,7 +152,7 @@ pub trait ProtocolHandler: Send + Sync {
         start: u64,
         end: u64,
         opts: &ProtocolOptions,
-    ) -> AftResult<Vec<u8>>;
+    ) -> IftResult<Vec<u8>>;
 
     /// Upload a local file to a remote destination
     async fn upload(
@@ -163,10 +163,10 @@ pub trait ProtocolHandler: Send + Sync {
         content_type: Option<&str>,
         method: Option<&str>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64>;
+    ) -> IftResult<u64>;
 
     /// List directory contents at a URL
-    async fn list(&self, url: &str, opts: &ProtocolOptions) -> AftResult<Vec<DirectoryEntry>>;
+    async fn list(&self, url: &str, opts: &ProtocolOptions) -> IftResult<Vec<DirectoryEntry>>;
 
     // ------------------------------------------------------------------
     // Extended operations
@@ -178,22 +178,22 @@ pub trait ProtocolHandler: Send + Sync {
     }
 
     /// Delete a file or directory at the given URL.
-    async fn delete(&self, _url: &str, _recursive: bool, _opts: &ProtocolOptions) -> AftResult<()> {
-        Err(AftError::UnsupportedProtocol(
+    async fn delete(&self, _url: &str, _recursive: bool, _opts: &ProtocolOptions) -> IftResult<()> {
+        Err(IftError::UnsupportedProtocol(
             "delete is not supported by this protocol".to_string(),
         ))
     }
 
     /// Rename / move a resource.
-    async fn rename(&self, _from: &str, _to: &str, _opts: &ProtocolOptions) -> AftResult<()> {
-        Err(AftError::UnsupportedProtocol(
+    async fn rename(&self, _from: &str, _to: &str, _opts: &ProtocolOptions) -> IftResult<()> {
+        Err(IftError::UnsupportedProtocol(
             "rename is not supported by this protocol".to_string(),
         ))
     }
 
     /// Create a directory (including parents).
-    async fn mkdir(&self, _url: &str, _opts: &ProtocolOptions) -> AftResult<()> {
-        Err(AftError::UnsupportedProtocol(
+    async fn mkdir(&self, _url: &str, _opts: &ProtocolOptions) -> IftResult<()> {
+        Err(IftError::UnsupportedProtocol(
             "mkdir is not supported by this protocol".to_string(),
         ))
     }
@@ -204,17 +204,17 @@ pub trait ProtocolHandler: Send + Sync {
         _url: &str,
         _mtime: chrono::DateTime<chrono::Utc>,
         _opts: &ProtocolOptions,
-    ) -> AftResult<()> {
-        Err(AftError::UnsupportedProtocol(
+    ) -> IftResult<()> {
+        Err(IftError::UnsupportedProtocol(
             "set_timestamps is not supported by this protocol".to_string(),
         ))
     }
 
     /// Check whether a resource exists.
-    async fn exists(&self, url: &str, opts: &ProtocolOptions) -> AftResult<bool> {
+    async fn exists(&self, url: &str, opts: &ProtocolOptions) -> IftResult<bool> {
         match self.head(url, opts).await {
             Ok(_) => Ok(true),
-            Err(AftError::FileNotFound(_)) => Ok(false),
+            Err(IftError::FileNotFound(_)) => Ok(false),
             Err(e) => Err(e),
         }
     }
@@ -225,7 +225,7 @@ pub trait ProtocolHandler: Send + Sync {
         url: &str,
         opts: &ProtocolOptions,
         max_depth: usize,
-    ) -> AftResult<Vec<DirectoryEntry>> {
+    ) -> IftResult<Vec<DirectoryEntry>> {
         let effective_max = if max_depth == 0 { 200 } else { max_depth };
         let mut result = Vec::new();
         let mut stack: Vec<(String, String, usize)> = vec![(url.to_string(), String::new(), 0)];
@@ -259,13 +259,13 @@ pub trait ProtocolHandler: Send + Sync {
 /// Detects the protocol from the URL scheme, or infers local file paths
 /// from filesystem-like patterns (relative paths, drive letters, etc.).
 /// Checks loaded plugins first before falling back to built-in handlers.
-pub fn resolve_protocol(url: &str) -> AftResult<Box<dyn ProtocolHandler>> {
+pub fn resolve_protocol(url: &str) -> IftResult<Box<dyn ProtocolHandler>> {
     let scheme = if url.contains("://") {
         let s = url.split("://").next().unwrap_or("").to_lowercase();
         // RFC 3986: scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
         // Must be non-empty and start with an ASCII letter.
         if s.is_empty() || !s.starts_with(|c: char| c.is_ascii_alphabetic()) {
-            return Err(AftError::InvalidUrl(format!(
+            return Err(IftError::InvalidUrl(format!(
                 "Missing or invalid URL scheme in '{}'",
                 url
             )));
@@ -274,7 +274,7 @@ pub fn resolve_protocol(url: &str) -> AftResult<Box<dyn ProtocolHandler>> {
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
         {
-            return Err(AftError::InvalidUrl(format!(
+            return Err(IftError::InvalidUrl(format!(
                 "Invalid characters in URL scheme: '{}'",
                 s
             )));
@@ -283,7 +283,7 @@ pub fn resolve_protocol(url: &str) -> AftResult<Box<dyn ProtocolHandler>> {
     } else if is_local_path(url) {
         "file".to_string()
     } else {
-        return Err(AftError::InvalidUrl(format!(
+        return Err(IftError::InvalidUrl(format!(
             "Cannot determine protocol for: {}. Use a URL with a scheme (e.g., https://) or a local path.",
             url
         )));
@@ -314,7 +314,7 @@ pub fn resolve_protocol(url: &str) -> AftResult<Box<dyn ProtocolHandler>> {
         "gs" => Ok(Box::new(gcs::GcsHandler)),
         "smb" => Ok(Box::new(smb::SmbHandler)),
         "dod" => Ok(Box::new(dod::DodHandler)),
-        _ => Err(AftError::UnsupportedProtocol(format!(
+        _ => Err(IftError::UnsupportedProtocol(format!(
             "'{}'. Supported: http, https, ftp, ftps, sftp, scp, s3, aftp, webdav, az, gs, smb, dod, file",
             scheme
         ))),

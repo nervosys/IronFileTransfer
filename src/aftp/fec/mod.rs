@@ -74,7 +74,7 @@ pub const FEC_MIN_TRANSFER: u64 = 1 << 20; // 1 MiB
 pub fn derive_symbol_key(
     auth_token: Option<&str>,
     session_id: u64,
-) -> crate::error::AftResult<Option<Vec<u8>>> {
+) -> crate::error::IftResult<Option<Vec<u8>>> {
     let Some(token) = auth_token else {
         return Ok(None);
     };

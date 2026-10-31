@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! Cryptographic primitives, all supplied by IronCrypto (the IronSecurity stack).
 //!
-//! This is the one place AFT names a cryptographic implementation. Everything
+//! This is the one place IFT names a cryptographic implementation. Everything
 //! else calls these helpers, so the backend is changed in this file and nowhere
 //! else.
 //!
@@ -17,19 +17,19 @@ use ic_core::entropy::OsEntropy;
 use ic_hash::Sha256;
 use ic_mac::HmacSha256;
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 /// AES-256-GCM nonce length (96-bit).
 pub const GCM_NONCE_LEN: usize = 12;
 /// AES-256-GCM authentication tag length (128-bit).
 pub const GCM_TAG_LEN: usize = 16;
 
-fn crypto_err(context: &str, e: ic_core::Error) -> AftError {
-    AftError::CryptoError(format!("{}: {}", context, e))
+fn crypto_err(context: &str, e: ic_core::Error) -> IftError {
+    IftError::CryptoError(format!("{}: {}", context, e))
 }
 
 /// Fill `out` from the operating system's entropy source.
-pub fn random_bytes(out: &mut [u8]) -> AftResult<()> {
+pub fn random_bytes(out: &mut [u8]) -> IftResult<()> {
     ic_core::entropy::fill(out).map_err(|e| crypto_err("OS entropy unavailable", e))
 }
 
@@ -48,7 +48,7 @@ pub fn sha256(data: &[u8]) -> [u8; 32] {
 /// HMAC-SHA256 over the concatenation of `parts`, keyed by `key`.
 ///
 /// HMAC accepts a key of any length, so this only fails if the backend does.
-pub fn hmac_sha256(key: &[u8], parts: &[&[u8]]) -> AftResult<[u8; 32]> {
+pub fn hmac_sha256(key: &[u8], parts: &[&[u8]]) -> IftResult<[u8; 32]> {
     let mut mac = HmacSha256::new(key).map_err(|e| crypto_err("HMAC key", e))?;
     for p in parts {
         mac.update(p);
@@ -67,7 +67,7 @@ pub fn hmac_sha256_verify(key: &[u8], data: &[u8], tag: &[u8]) -> bool {
 ///
 /// The caller must never reuse a `(key, nonce)` pair. Callers here draw a
 /// fresh 96-bit random nonce per message under a per-message or per-session key.
-pub fn gcm_seal(key: &[u8], nonce: &[u8], aad: &[u8], plaintext: &[u8]) -> AftResult<Vec<u8>> {
+pub fn gcm_seal(key: &[u8], nonce: &[u8], aad: &[u8], plaintext: &[u8]) -> IftResult<Vec<u8>> {
     let cipher = Aes256Gcm::new(key).map_err(|e| crypto_err("AES-256-GCM key", e))?;
     let mut out = plaintext.to_vec();
     let mut tag = [0u8; GCM_TAG_LEN];
@@ -80,9 +80,9 @@ pub fn gcm_seal(key: &[u8], nonce: &[u8], aad: &[u8], plaintext: &[u8]) -> AftRe
 
 /// AES-256-GCM open. `sealed` is `ciphertext || tag`. Fails if authentication
 /// fails, which covers a forged, corrupted, or mis-keyed message.
-pub fn gcm_open(key: &[u8], nonce: &[u8], aad: &[u8], sealed: &[u8]) -> AftResult<Vec<u8>> {
+pub fn gcm_open(key: &[u8], nonce: &[u8], aad: &[u8], sealed: &[u8]) -> IftResult<Vec<u8>> {
     if sealed.len() < GCM_TAG_LEN {
-        return Err(AftError::CryptoError(
+        return Err(IftError::CryptoError(
             "AES-256-GCM input shorter than its tag".into(),
         ));
     }
@@ -91,7 +91,7 @@ pub fn gcm_open(key: &[u8], nonce: &[u8], aad: &[u8], sealed: &[u8]) -> AftResul
     let mut out = ct.to_vec();
     cipher
         .open_detached(nonce, aad, &mut out, tag)
-        .map_err(|_| AftError::CryptoError("AES-256-GCM authentication failed".into()))?;
+        .map_err(|_| IftError::CryptoError("AES-256-GCM authentication failed".into()))?;
     Ok(out)
 }
 

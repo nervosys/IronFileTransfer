@@ -25,7 +25,7 @@
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 // ── Wire constants ──────────────────────────────────────────────────────────
 
@@ -177,21 +177,21 @@ impl Frame {
 
 // ── Frame I/O ───────────────────────────────────────────────────────────────
 
-pub async fn read_frame_header<R: AsyncRead + Unpin>(r: &mut R) -> AftResult<FrameHeader> {
+pub async fn read_frame_header<R: AsyncRead + Unpin>(r: &mut R) -> IftResult<FrameHeader> {
     let mut buf = [0u8; HEADER_SIZE];
     r.read_exact(&mut buf).await.map_err(|e| {
         if e.kind() == std::io::ErrorKind::UnexpectedEof {
-            AftError::ConnectionFailed("Connection closed".into())
+            IftError::ConnectionFailed("Connection closed".into())
         } else {
-            AftError::Io(e)
+            IftError::Io(e)
         }
     })?;
 
     if buf[0] != MAGIC[0] || buf[1] != MAGIC[1] {
-        return Err(AftError::Other("Invalid AFTP magic bytes".into()));
+        return Err(IftError::Other("Invalid AFTP magic bytes".into()));
     }
     if buf[2] != VERSION {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "Unsupported AFTP version: {}",
             buf[2]
         )));
@@ -205,10 +205,10 @@ pub async fn read_frame_header<R: AsyncRead + Unpin>(r: &mut R) -> AftResult<Fra
 }
 
 /// Read a complete frame. `max_payload` prevents memory bombs from malicious peers.
-pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R, max_payload: u32) -> AftResult<Frame> {
+pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R, max_payload: u32) -> IftResult<Frame> {
     let hdr = read_frame_header(r).await?;
     if hdr.payload_len > max_payload {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "AFTP payload too large: {} bytes (limit {})",
             hdr.payload_len, max_payload
         )));
@@ -224,7 +224,7 @@ pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R, max_payload: u32) -> Af
     })
 }
 
-pub async fn write_frame<W: AsyncWrite + Unpin>(w: &mut W, frame: &Frame) -> AftResult<()> {
+pub async fn write_frame<W: AsyncWrite + Unpin>(w: &mut W, frame: &Frame) -> IftResult<()> {
     let len = frame.payload.len() as u32;
     let mut hdr = [0u8; HEADER_SIZE];
     hdr[0] = MAGIC[0];
@@ -244,9 +244,9 @@ pub async fn write_frame<W: AsyncWrite + Unpin>(w: &mut W, frame: &Frame) -> Aft
 
 /// Verify per-frame CRC32: the last 4 payload bytes must equal the CRC32 of the
 /// preceding bytes. Returns the data length (payload.len() - 4) on success.
-pub fn verify_frame_crc32(payload: &[u8]) -> AftResult<usize> {
+pub fn verify_frame_crc32(payload: &[u8]) -> IftResult<usize> {
     if payload.len() < 4 {
-        return Err(AftError::Other("Frame too short for CRC32 trailer".into()));
+        return Err(IftError::Other("Frame too short for CRC32 trailer".into()));
     }
     let data_len = payload.len() - 4;
     let expected = u32::from_le_bytes([
@@ -257,7 +257,7 @@ pub fn verify_frame_crc32(payload: &[u8]) -> AftResult<usize> {
     ]);
     let actual = crc32fast::hash(&payload[..data_len]);
     if expected != actual {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "Frame CRC32 mismatch: expected 0x{:08X}, got 0x{:08X}",
             expected, actual
         )));
@@ -271,7 +271,7 @@ pub async fn write_frame_header<W: AsyncWrite + Unpin>(
     frame_type: u8,
     flags: u8,
     payload_len: u32,
-) -> AftResult<()> {
+) -> IftResult<()> {
     let mut hdr = [0u8; HEADER_SIZE];
     hdr[0] = MAGIC[0];
     hdr[1] = MAGIC[1];
@@ -323,36 +323,36 @@ pub fn put_bytes(buf: &mut Vec<u8>, data: &[u8]) {
 
 // ── Binary decoding helpers (with bounds checking) ──────────────────────────
 
-pub fn get_u8(buf: &[u8], off: &mut usize) -> AftResult<u8> {
+pub fn get_u8(buf: &[u8], off: &mut usize) -> IftResult<u8> {
     if *off + 1 > buf.len() {
-        return Err(AftError::Other("AFTP frame truncated (u8)".into()));
+        return Err(IftError::Other("AFTP frame truncated (u8)".into()));
     }
     let v = buf[*off];
     *off += 1;
     Ok(v)
 }
 
-pub fn get_u16(buf: &[u8], off: &mut usize) -> AftResult<u16> {
+pub fn get_u16(buf: &[u8], off: &mut usize) -> IftResult<u16> {
     if *off + 2 > buf.len() {
-        return Err(AftError::Other("AFTP frame truncated (u16)".into()));
+        return Err(IftError::Other("AFTP frame truncated (u16)".into()));
     }
     let v = u16::from_le_bytes([buf[*off], buf[*off + 1]]);
     *off += 2;
     Ok(v)
 }
 
-pub fn get_u32(buf: &[u8], off: &mut usize) -> AftResult<u32> {
+pub fn get_u32(buf: &[u8], off: &mut usize) -> IftResult<u32> {
     if *off + 4 > buf.len() {
-        return Err(AftError::Other("AFTP frame truncated (u32)".into()));
+        return Err(IftError::Other("AFTP frame truncated (u32)".into()));
     }
     let v = u32::from_le_bytes([buf[*off], buf[*off + 1], buf[*off + 2], buf[*off + 3]]);
     *off += 4;
     Ok(v)
 }
 
-pub fn get_u64(buf: &[u8], off: &mut usize) -> AftResult<u64> {
+pub fn get_u64(buf: &[u8], off: &mut usize) -> IftResult<u64> {
     if *off + 8 > buf.len() {
-        return Err(AftError::Other("AFTP frame truncated (u64)".into()));
+        return Err(IftError::Other("AFTP frame truncated (u64)".into()));
     }
     let v = u64::from_le_bytes([
         buf[*off],
@@ -368,20 +368,20 @@ pub fn get_u64(buf: &[u8], off: &mut usize) -> AftResult<u64> {
     Ok(v)
 }
 
-pub fn get_str(buf: &[u8], off: &mut usize) -> AftResult<String> {
+pub fn get_str(buf: &[u8], off: &mut usize) -> IftResult<String> {
     let len = get_u16(buf, off)? as usize;
     if *off + len > buf.len() {
-        return Err(AftError::Other("AFTP frame truncated (string)".into()));
+        return Err(IftError::Other("AFTP frame truncated (string)".into()));
     }
     let s = String::from_utf8_lossy(&buf[*off..*off + len]).to_string();
     *off += len;
     Ok(s)
 }
 
-pub fn get_bytes(buf: &[u8], off: &mut usize) -> AftResult<Vec<u8>> {
+pub fn get_bytes(buf: &[u8], off: &mut usize) -> IftResult<Vec<u8>> {
     let len = get_u16(buf, off)? as usize;
     if *off + len > buf.len() {
-        return Err(AftError::Other("AFTP frame truncated (bytes)".into()));
+        return Err(IftError::Other("AFTP frame truncated (bytes)".into()));
     }
     let data = buf[*off..*off + len].to_vec();
     *off += len;
@@ -491,7 +491,7 @@ pub struct HelloPayload {
     pub auth_token: String,
 }
 
-pub fn parse_hello(payload: &[u8]) -> AftResult<HelloPayload> {
+pub fn parse_hello(payload: &[u8]) -> IftResult<HelloPayload> {
     let mut off = 0;
     let capabilities = get_u32(payload, &mut off)?;
     let auth_token = get_str(payload, &mut off)?;
@@ -507,7 +507,7 @@ pub struct HelloAckPayload {
     pub session_id: String,
 }
 
-pub fn parse_hello_ack(payload: &[u8]) -> AftResult<HelloAckPayload> {
+pub fn parse_hello_ack(payload: &[u8]) -> IftResult<HelloAckPayload> {
     let mut off = 0;
     let capabilities = get_u32(payload, &mut off)?;
     let max_frame_size = get_u32(payload, &mut off)?;
@@ -530,7 +530,7 @@ pub struct GetPayload {
     pub range_end: u64,
 }
 
-pub fn parse_get(payload: &[u8]) -> AftResult<GetPayload> {
+pub fn parse_get(payload: &[u8]) -> IftResult<GetPayload> {
     let mut off = 0;
     let path = get_str(payload, &mut off)?;
     let range_start = get_u64(payload, &mut off)?;
@@ -548,7 +548,7 @@ pub struct HeadRespPayload {
     pub content_type: String,
 }
 
-pub fn parse_head_resp(payload: &[u8]) -> AftResult<HeadRespPayload> {
+pub fn parse_head_resp(payload: &[u8]) -> IftResult<HeadRespPayload> {
     let mut off = 0;
     let file_size = get_u64(payload, &mut off)?;
     let modified_secs = get_u64(payload, &mut off)?;
@@ -566,7 +566,7 @@ pub struct PutPayload {
     pub file_size: u64,
 }
 
-pub fn parse_put(payload: &[u8]) -> AftResult<PutPayload> {
+pub fn parse_put(payload: &[u8]) -> IftResult<PutPayload> {
     let mut off = 0;
     let path = get_str(payload, &mut off)?;
     let file_size = get_u64(payload, &mut off)?;
@@ -579,13 +579,13 @@ pub struct DataEndPayload {
     pub checksum: Vec<u8>,
 }
 
-pub fn parse_data_end(payload: &[u8]) -> AftResult<DataEndPayload> {
+pub fn parse_data_end(payload: &[u8]) -> IftResult<DataEndPayload> {
     let mut off = 0;
     let total_bytes = get_u64(payload, &mut off)?;
     let algo = get_u8(payload, &mut off)?;
     let len = get_u8(payload, &mut off)? as usize;
     if off + len > payload.len() {
-        return Err(AftError::Other("DATA_END checksum truncated".into()));
+        return Err(IftError::Other("DATA_END checksum truncated".into()));
     }
     let checksum = payload[off..off + len].to_vec();
     Ok(DataEndPayload {
@@ -601,7 +601,7 @@ pub struct ErrorPayload {
     pub message: String,
 }
 
-pub fn parse_error(payload: &[u8]) -> AftResult<ErrorPayload> {
+pub fn parse_error(payload: &[u8]) -> IftResult<ErrorPayload> {
     let mut off = 0;
     let code = get_u16(payload, &mut off)?;
     let message = get_str(payload, &mut off)?;
@@ -612,7 +612,7 @@ pub struct PutAckPayload {
     pub complete: bool,
 }
 
-pub fn parse_put_ack(payload: &[u8]) -> AftResult<PutAckPayload> {
+pub fn parse_put_ack(payload: &[u8]) -> IftResult<PutAckPayload> {
     let mut off = 0;
     let status = get_u8(payload, &mut off)?;
     Ok(PutAckPayload {
@@ -627,7 +627,7 @@ pub struct ListEntry {
     pub modified_secs: u64,
 }
 
-pub fn parse_list_resp(payload: &[u8]) -> AftResult<Vec<ListEntry>> {
+pub fn parse_list_resp(payload: &[u8]) -> IftResult<Vec<ListEntry>> {
     let mut off = 0;
     let count = get_u32(payload, &mut off)? as usize;
     // Cap allocation to prevent OOM from malicious count values.
@@ -674,7 +674,7 @@ pub struct AuthChallengePayload {
     pub nonce: Vec<u8>,
 }
 
-pub fn parse_auth_challenge(payload: &[u8]) -> AftResult<AuthChallengePayload> {
+pub fn parse_auth_challenge(payload: &[u8]) -> IftResult<AuthChallengePayload> {
     let mut off = 0;
     let nonce = get_bytes(payload, &mut off)?;
     Ok(AuthChallengePayload { nonce })
@@ -691,7 +691,7 @@ pub struct AuthResponsePayload {
     pub hmac: Vec<u8>,
 }
 
-pub fn parse_auth_response(payload: &[u8]) -> AftResult<AuthResponsePayload> {
+pub fn parse_auth_response(payload: &[u8]) -> IftResult<AuthResponsePayload> {
     let mut off = 0;
     let hmac = get_bytes(payload, &mut off)?;
     Ok(AuthResponsePayload { hmac })
@@ -727,7 +727,7 @@ pub struct StreamOpenPayload {
     pub stream_id: u16,
 }
 
-pub fn parse_stream_open(payload: &[u8]) -> AftResult<StreamOpenPayload> {
+pub fn parse_stream_open(payload: &[u8]) -> IftResult<StreamOpenPayload> {
     let mut off = 0;
     let stream_id = get_u16(payload, &mut off)?;
     Ok(StreamOpenPayload { stream_id })
@@ -737,7 +737,7 @@ pub struct StreamClosePayload {
     pub stream_id: u16,
 }
 
-pub fn parse_stream_close(payload: &[u8]) -> AftResult<StreamClosePayload> {
+pub fn parse_stream_close(payload: &[u8]) -> IftResult<StreamClosePayload> {
     let mut off = 0;
     let stream_id = get_u16(payload, &mut off)?;
     Ok(StreamClosePayload { stream_id })
@@ -749,13 +749,13 @@ pub struct StreamDataPayload {
     pub data: Vec<u8>,
 }
 
-pub fn parse_stream_data(payload: &[u8]) -> AftResult<StreamDataPayload> {
+pub fn parse_stream_data(payload: &[u8]) -> IftResult<StreamDataPayload> {
     let mut off = 0;
     let stream_id = get_u16(payload, &mut off)?;
     let inner_frame_type = get_u8(payload, &mut off)?;
     let data_len = get_u32(payload, &mut off)? as usize;
     if off + data_len > payload.len() {
-        return Err(AftError::Other("STREAM_DATA truncated".into()));
+        return Err(IftError::Other("STREAM_DATA truncated".into()));
     }
     let data = payload[off..off + data_len].to_vec();
     Ok(StreamDataPayload {
@@ -783,7 +783,7 @@ pub struct ResumePayload {
     pub auth_token: String,
 }
 
-pub fn parse_resume(payload: &[u8]) -> AftResult<ResumePayload> {
+pub fn parse_resume(payload: &[u8]) -> IftResult<ResumePayload> {
     let mut off = 0;
     let session_id = get_str(payload, &mut off)?;
     let capabilities = get_u32(payload, &mut off)?;
@@ -813,7 +813,7 @@ pub struct ResumeAckPayload {
     pub path: String,
 }
 
-pub fn parse_resume_ack(payload: &[u8]) -> AftResult<ResumeAckPayload> {
+pub fn parse_resume_ack(payload: &[u8]) -> IftResult<ResumeAckPayload> {
     let mut off = 0;
     let accepted = get_u8(payload, &mut off)? != 0;
     let bytes_received = get_u64(payload, &mut off)?;
@@ -870,14 +870,14 @@ impl FrameAssembler {
         &mut self,
         r: &mut R,
         max_payload: u32,
-    ) -> AftResult<Option<Frame>> {
+    ) -> IftResult<Option<Frame>> {
         use tokio::io::AsyncReadExt;
 
         // Phase 1: the fixed-size header.
         if self.parsed.is_none() {
             let n = r.read(&mut self.header[self.header_filled..]).await?;
             if n == 0 {
-                return Err(AftError::ConnectionFailed("Connection closed".into()));
+                return Err(IftError::ConnectionFailed("Connection closed".into()));
             }
             self.header_filled += n;
             if self.header_filled < HEADER_SIZE {
@@ -885,10 +885,10 @@ impl FrameAssembler {
             }
 
             if self.header[0..2] != MAGIC {
-                return Err(AftError::Other("AFTP bad magic".into()));
+                return Err(IftError::Other("AFTP bad magic".into()));
             }
             if self.header[2] != VERSION {
-                return Err(AftError::Other(format!(
+                return Err(IftError::Other(format!(
                     "AFTP version mismatch: got {}, expected {}",
                     self.header[2], VERSION
                 )));
@@ -900,7 +900,7 @@ impl FrameAssembler {
                 self.header[9],
             ]);
             if payload_len > max_payload {
-                return Err(AftError::Other(format!(
+                return Err(IftError::Other(format!(
                     "AFTP frame payload {} exceeds maximum {}",
                     payload_len, max_payload
                 )));
@@ -919,7 +919,7 @@ impl FrameAssembler {
         if self.payload_filled < hdr.payload_len as usize {
             let n = r.read(&mut self.payload[self.payload_filled..]).await?;
             if n == 0 {
-                return Err(AftError::ConnectionFailed("Connection closed".into()));
+                return Err(IftError::ConnectionFailed("Connection closed".into()));
             }
             self.payload_filled += n;
             if self.payload_filled < hdr.payload_len as usize {
@@ -973,7 +973,7 @@ pub struct FecOfferPayload {
     pub authenticated: bool,
 }
 
-pub fn parse_fec_offer(payload: &[u8]) -> AftResult<FecOfferPayload> {
+pub fn parse_fec_offer(payload: &[u8]) -> IftResult<FecOfferPayload> {
     let mut off = 0;
     let session_id = get_u64(payload, &mut off)?;
     let total_len = get_u64(payload, &mut off)?;
@@ -987,19 +987,19 @@ pub fn parse_fec_offer(payload: &[u8]) -> AftResult<FecOfferPayload> {
     // declared length is malformed or hostile, and either way must not be
     // allowed to drive our buffer sizing.
     if symbol_size == 0 {
-        return Err(AftError::Other("FEC offer has zero symbol size".into()));
+        return Err(IftError::Other("FEC offer has zero symbol size".into()));
     }
     if block_size == 0 {
-        return Err(AftError::Other("FEC offer has zero block size".into()));
+        return Err(IftError::Other("FEC offer has zero block size".into()));
     }
     if symbol_size as u32 > block_size {
-        return Err(AftError::Other(
+        return Err(IftError::Other(
             "FEC offer symbol size exceeds block size".into(),
         ));
     }
     let expected = total_len.div_ceil(block_size as u64);
     if expected != block_count as u64 {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "FEC offer block count {} disagrees with {} bytes at {} per block (expected {})",
             block_count, total_len, block_size, expected
         )));
@@ -1034,13 +1034,13 @@ pub struct FecAcceptPayload {
     pub reason: String,
 }
 
-pub fn parse_fec_accept(payload: &[u8]) -> AftResult<FecAcceptPayload> {
+pub fn parse_fec_accept(payload: &[u8]) -> IftResult<FecAcceptPayload> {
     let mut off = 0;
     let accepted = get_u8(payload, &mut off)? != 0;
     let udp_port = get_u16(payload, &mut off)?;
     let reason = get_str(payload, &mut off)?;
     if accepted && udp_port == 0 {
-        return Err(AftError::Other(
+        return Err(IftError::Other(
             "FEC accept did not supply a data-plane port".into(),
         ));
     }
@@ -1070,7 +1070,7 @@ pub struct FecNeedMorePayload {
     pub symbols_received: u32,
 }
 
-pub fn parse_fec_needmore(payload: &[u8]) -> AftResult<FecNeedMorePayload> {
+pub fn parse_fec_needmore(payload: &[u8]) -> IftResult<FecNeedMorePayload> {
     let mut off = 0;
     let block_id = get_u32(payload, &mut off)?;
     let symbols_needed = get_u32(payload, &mut off)?;
@@ -1096,7 +1096,7 @@ pub struct FecBlockOkPayload {
     pub symbols_used: u32,
 }
 
-pub fn parse_fec_block_ok(payload: &[u8]) -> AftResult<FecBlockOkPayload> {
+pub fn parse_fec_block_ok(payload: &[u8]) -> IftResult<FecBlockOkPayload> {
     let mut off = 0;
     let block_id = get_u32(payload, &mut off)?;
     let symbols_used = get_u32(payload, &mut off)?;

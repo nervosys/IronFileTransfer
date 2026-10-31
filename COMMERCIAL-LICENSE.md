@@ -1,7 +1,7 @@
 # Commercial License (Summary)
 
 > **This document is an informational summary, not a contract.** It describes
-> what a commercial license for Agentic File Transfer (AFT) is intended to
+> what a commercial license for Iron File Transfer (IFT) is intended to
 > provide. The binding terms are those of the signed commercial license
 > agreement executed between you and Nervosys, LLC. Nothing here grants any
 > license by itself. Where this summary and a signed agreement differ, the
@@ -9,21 +9,21 @@
 
 ## Why a commercial license
 
-AFT is available for free under the [AGPL-3.0-or-later](LICENSE). The AGPL's
+IFT is available for free under the [AGPL-3.0-or-later](LICENSE). The AGPL's
 copyleft — in particular its network clause (§13) — requires you to release the
 complete corresponding source of any modified version you convey **or make
 available to users over a network**. That is incompatible with many proprietary
 and SaaS business models.
 
 A commercial license from Nervosys is the alternative: it grants the right to
-use, modify, and distribute AFT **without** the AGPL's copyleft and
+use, modify, and distribute IFT **without** the AGPL's copyleft and
 source-disclosure obligations.
 
 ## What a commercial license typically grants
 
-- **Proprietary use** — embed AFT (or a derivative) in closed-source products you distribute, with no obligation to publish your source.
-- **SaaS / hosted use** — operate a modified AFT as a network service without triggering AGPL §13 source-provision obligations to your users.
-- **Redistribution** — sublicense AFT as part of your product under your own terms, within the scope of the agreement.
+- **Proprietary use** — embed IFT (or a derivative) in closed-source products you distribute, with no obligation to publish your source.
+- **SaaS / hosted use** — operate a modified IFT as a network service without triggering AGPL §13 source-provision obligations to your users.
+- **Redistribution** — sublicense IFT as part of your product under your own terms, within the scope of the agreement.
 
 ## Options that may be negotiated
 
@@ -48,6 +48,6 @@ Nervosys will respond with current terms and pricing.
 
 ---
 
-Copyright © 2024–2026 Nervosys, LLC. "AFT" and "Agentic File Transfer" refer to
+Copyright © 2024–2026 Nervosys, LLC. "IFT" and "Iron File Transfer" refer to
 the software in this repository. AGPL is a trademark of the Free Software
 Foundation; its use here is descriptive only.

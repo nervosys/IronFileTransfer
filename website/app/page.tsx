@@ -86,9 +86,9 @@ export default function Home() {
           </div>
 
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground mb-4">
-            <span className="text-accent glow-text">AFT</span>
+            <span className="text-accent glow-text">IFT</span>
             <span className="text-muted font-light"> — </span>
-            Agentic File Transfer
+            Iron File Transfer
           </h1>
 
           <p className="text-lg md:text-xl text-muted max-w-2xl mx-auto mb-8 leading-relaxed">
@@ -193,34 +193,34 @@ export default function Home() {
               <span className="text-muted"># Download a file</span>
               {"\n"}
               <span className="text-success">$</span>{" "}
-              <span className="text-foreground">aft get</span>{" "}
+              <span className="text-foreground">ift get</span>{" "}
               <span className="text-accent">https://example.com/data.tar.gz</span>
               {"\n\n"}
               <span className="text-muted"># Turbo transfer with 64 parallel streams</span>
               {"\n"}
               <span className="text-success">$</span>{" "}
-              <span className="text-foreground">aft get</span>{" "}
+              <span className="text-foreground">ift get</span>{" "}
               <span className="text-accent">aftp://server:2600/payload.bin</span>{" "}
               <span className="text-warning">--turbo --streams 64</span>
               {"\n\n"}
               <span className="text-muted"># Encrypt with post-quantum crypto</span>
               {"\n"}
               <span className="text-success">$</span>{" "}
-              <span className="text-foreground">aft crypto encrypt</span>{" "}
+              <span className="text-foreground">ift crypto encrypt</span>{" "}
               <span className="text-accent">-i secret.pdf</span>{" "}
               <span className="text-warning">--method pqc -k keys.pub</span>
               {"\n\n"}
               <span className="text-muted"># Sync directories (rsync-class)</span>
               {"\n"}
               <span className="text-success">$</span>{" "}
-              <span className="text-foreground">aft sync</span>{" "}
+              <span className="text-foreground">ift sync</span>{" "}
               <span className="text-accent">./src/ sftp://server/backup/</span>{" "}
               <span className="text-warning">--delete --compare checksum</span>
               {"\n\n"}
               <span className="text-muted"># AI agent mode — structured JSON output</span>
               {"\n"}
               <span className="text-success">$</span>{" "}
-              <span className="text-foreground">aft --agent capabilities</span>
+              <span className="text-foreground">ift --agent capabilities</span>
             </code>
           </pre>
         </div>
@@ -232,7 +232,7 @@ export default function Home() {
           <span>
             &copy; {new Date().getFullYear()} Nervosys &middot; AGPL-3.0-or-later
           </span>
-          <span>AFT v1.3.1 &middot; Rust &middot; MSRV 1.75</span>
+          <span>IFT v1.3.1 &middot; Rust &middot; MSRV 1.75</span>
         </div>
       </footer>
     </div>

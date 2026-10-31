@@ -23,7 +23,7 @@ export function TopBar() {
           <span className="text-accent font-mono font-bold text-sm">A</span>
         </div>
         <span className="font-mono text-lg font-bold tracking-wider text-foreground">
-          AFT<span className="text-accent">.</span>
+          IFT<span className="text-accent">.</span>
         </span>
       </Link>
 
@@ -47,7 +47,7 @@ export function TopBar() {
       </nav>
 
       <a
-        href="https://github.com/nervosys/AgenticFileTransfer"
+        href="https://github.com/nervosys/IronFileTransfer"
         target="_blank"
         rel="noopener noreferrer"
         className="text-muted hover:text-accent transition-colors text-sm font-mono"

@@ -28,7 +28,7 @@ use cli::{
 };
 use colored::Colorize;
 use engine::ProgressCb;
-use error::AftResult;
+use error::IftResult;
 use output::{Format, OutputResult};
 
 fn resolve_format(cli: &Cli) -> Format {
@@ -66,7 +66,7 @@ async fn main() {
 
     // Under --features fips, IronCrypto's power-on self-tests must pass before
     // any cryptographic operation. A failed self-test means the module is not
-    // trustworthy, so AFT stops rather than run with it.
+    // trustworthy, so IFT stops rather than run with it.
     #[cfg(feature = "fips")]
     if let Err(e) = ic_fips::initialize() {
         eprintln!("FIPS self-test failed; refusing to run: {}", e);
@@ -82,7 +82,7 @@ async fn main() {
                 "Config warning".yellow().bold(),
                 e
             );
-            config::AftConfig::default()
+            config::IftConfig::default()
         }
     };
 
@@ -161,8 +161,8 @@ async fn main() {
     // (`--agent`, `--quiet`) so it never contaminates parseable output.
     if telemetry_first_run && !cli.agent && !cli.quiet {
         eprintln!(
-            "note: AFT collects no usage telemetry by default. If you'd like to help improve \
-             it, opt in with `aft telemetry opt-in` (details: `aft telemetry status`)."
+            "note: IFT collects no usage telemetry by default. If you'd like to help improve \
+             it, opt in with `ift telemetry opt-in` (details: `ift telemetry status`)."
         );
     }
 
@@ -274,7 +274,7 @@ async fn main() {
     }
 }
 
-async fn run_command(cli: &Cli, format: Format) -> AftResult<OutputResult> {
+async fn run_command(cli: &Cli, format: Format) -> IftResult<OutputResult> {
     match &cli.command {
         Command::Get {
             url,
@@ -382,10 +382,10 @@ async fn run_command(cli: &Cli, format: Format) -> AftResult<OutputResult> {
         } => {
             let transport_type: aftp::transport::TransportType = transport
                 .parse()
-                .map_err(|e: String| error::AftError::Other(e))?;
+                .map_err(|e: String| error::IftError::Other(e))?;
 
             if transport_type != aftp::transport::TransportType::Tcp {
-                return Err(error::AftError::Other(format!(
+                return Err(error::IftError::Other(format!(
                     "Transport '{}' is not yet supported. Only TCP is currently implemented.",
                     transport
                 )));
@@ -573,7 +573,7 @@ async fn cmd_get(
     auth: Option<&str>,
     user_agent: Option<&str>,
     max_redirects: usize,
-) -> AftResult<OutputResult> {
+) -> IftResult<OutputResult> {
     let handler = protocols::resolve_protocol(url)?;
     let opts = build_opts(
         cli,
@@ -675,7 +675,7 @@ async fn cmd_put(
     bearer_token: Option<&str>,
     auth: Option<&str>,
     method: &str,
-) -> AftResult<OutputResult> {
+) -> IftResult<OutputResult> {
     let source_path = Path::new(source);
     if !source_path.exists() {
         return Ok(OutputResult::failure(
@@ -765,7 +765,7 @@ async fn cmd_copy(
     _exclude: &[String],
     _preserve: bool,
     _dry_run: bool,
-) -> AftResult<OutputResult> {
+) -> IftResult<OutputResult> {
     let src_handler = protocols::resolve_protocol(source)?;
     let dst_handler = protocols::resolve_protocol(destination)?;
     let opts = build_opts(cli, &[], None, None, None, None);
@@ -829,7 +829,7 @@ async fn cmd_copy(
 
     // Recursive copy to a remote destination. Previously this fell through to
     // the single-file path and failed with "neither a regular file", so
-    // `aft copy -r` simply did not work across protocols. Walking the tree and
+    // `ift copy -r` simply did not work across protocols. Walking the tree and
     // transferring each file concurrently is exactly what the sync engine
     // does, minus the deletion of extraneous files.
     if recursive {
@@ -923,7 +923,7 @@ async fn cmd_copy(
     } else {
         // Cross-protocol copy: download to temp, then upload
         let temp_name = format!(
-            "aft-{}-{}",
+            "ift-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -997,7 +997,7 @@ async fn cmd_head(
     url: &str,
     headers: &[String],
     bearer_token: Option<&str>,
-) -> AftResult<OutputResult> {
+) -> IftResult<OutputResult> {
     let handler = protocols::resolve_protocol(url)?;
     let opts = build_opts(cli, headers, bearer_token, None, None, None);
 
@@ -1023,7 +1023,7 @@ async fn cmd_list(
     url: &str,
     recursive: bool,
     _long: bool,
-) -> AftResult<OutputResult> {
+) -> IftResult<OutputResult> {
     let handler = protocols::resolve_protocol(url)?;
     let opts = build_opts(cli, &[], None, None, None, None);
 
@@ -1065,7 +1065,7 @@ async fn cmd_sync(
     max_size: Option<u64>,
     max_depth: usize,
     transfers: usize,
-) -> AftResult<OutputResult> {
+) -> IftResult<OutputResult> {
     let src_handler = protocols::resolve_protocol(source)?;
     let dst_handler = protocols::resolve_protocol(destination)?;
     let opts = build_opts(cli, &[], None, None, None, None);
@@ -1115,7 +1115,7 @@ async fn cmd_sync(
     Ok(out)
 }
 
-async fn cmd_mv(cli: &Cli, source: &str, destination: &str) -> AftResult<OutputResult> {
+async fn cmd_mv(cli: &Cli, source: &str, destination: &str) -> IftResult<OutputResult> {
     let handler = protocols::resolve_protocol(source)?;
     let opts = build_opts(cli, &[], None, None, None, None);
 
@@ -1135,7 +1135,7 @@ async fn cmd_mv(cli: &Cli, source: &str, destination: &str) -> AftResult<OutputR
     Ok(out)
 }
 
-async fn cmd_rm(cli: &Cli, url: &str, recursive: bool) -> AftResult<OutputResult> {
+async fn cmd_rm(cli: &Cli, url: &str, recursive: bool) -> IftResult<OutputResult> {
     let handler = protocols::resolve_protocol(url)?;
     let opts = build_opts(cli, &[], None, None, None, None);
 
@@ -1154,7 +1154,7 @@ async fn cmd_rm(cli: &Cli, url: &str, recursive: bool) -> AftResult<OutputResult
     Ok(out)
 }
 
-async fn cmd_mkdir(cli: &Cli, url: &str) -> AftResult<OutputResult> {
+async fn cmd_mkdir(cli: &Cli, url: &str) -> IftResult<OutputResult> {
     let handler = protocols::resolve_protocol(url)?;
     let opts = build_opts(cli, &[], None, None, None, None);
 
@@ -1177,7 +1177,7 @@ async fn cmd_checksum(
     _format: Format,
     path: &str,
     algorithm: &ChecksumAlgorithm,
-) -> AftResult<OutputResult> {
+) -> IftResult<OutputResult> {
     let file_path = Path::new(path);
     if !file_path.exists() {
         return Ok(OutputResult::failure(
@@ -1253,13 +1253,13 @@ async fn cmd_checksum(
 // Plugin management
 // ---------------------------------------------------------------------------
 
-async fn cmd_plugin(action: &PluginAction) -> AftResult<OutputResult> {
+async fn cmd_plugin(action: &PluginAction) -> IftResult<OutputResult> {
     match action {
         PluginAction::List => {
             let registry = plugins::global_registry();
             let guard = registry
                 .lock()
-                .map_err(|e| error::AftError::Other(format!("Plugin registry lock: {}", e)))?;
+                .map_err(|e| error::IftError::Other(format!("Plugin registry lock: {}", e)))?;
             let plugins_list = guard.list();
 
             if plugins_list.is_empty() {
@@ -1288,7 +1288,7 @@ async fn cmd_plugin(action: &PluginAction) -> AftResult<OutputResult> {
             let registry = plugins::global_registry();
             let mut guard = registry
                 .lock()
-                .map_err(|e| error::AftError::Other(format!("Plugin registry lock: {}", e)))?;
+                .map_err(|e| error::IftError::Other(format!("Plugin registry lock: {}", e)))?;
             let meta = guard.load_plugin(std::path::Path::new(path))?;
             let mut out = OutputResult::success("Plugin Load");
             out.source = Some(format!(
@@ -1301,7 +1301,7 @@ async fn cmd_plugin(action: &PluginAction) -> AftResult<OutputResult> {
             let registry = plugins::global_registry();
             let mut guard = registry
                 .lock()
-                .map_err(|e| error::AftError::Other(format!("Plugin registry lock: {}", e)))?;
+                .map_err(|e| error::IftError::Other(format!("Plugin registry lock: {}", e)))?;
             guard.unload(scheme)?;
             let mut out = OutputResult::success("Plugin Unload");
             out.source = Some(format!("Unloaded plugin for scheme '{}'", scheme));
@@ -1317,7 +1317,7 @@ async fn cmd_plugin(action: &PluginAction) -> AftResult<OutputResult> {
 async fn cmd_crypto(
     action: &cli::CryptoAction,
     experimental_crypto: bool,
-) -> AftResult<OutputResult> {
+) -> IftResult<OutputResult> {
     use cli::CryptoAction;
 
     // The neural-network cipher is research-grade and has no security proof, so
@@ -1330,9 +1330,9 @@ async fn cmd_crypto(
             crypto::EncryptionMethod::Neural | crypto::EncryptionMethod::Hybrid
         )
     };
-    let guard_experimental = |m: crypto::EncryptionMethod| -> AftResult<()> {
+    let guard_experimental = |m: crypto::EncryptionMethod| -> IftResult<()> {
         if requires_experimental(m) && !experimental_crypto {
-            return Err(error::AftError::Other(
+            return Err(error::IftError::Other(
                 "the neural-network cipher is experimental and NOT secure; it is disabled by \
                  default. Re-run with --experimental-crypto to use it, or choose --method pqc \
                  for real protection."
@@ -1383,11 +1383,11 @@ async fn cmd_crypto(
             let cipher =
                 tokio::task::spawn_blocking(move || crypto::neural::NeuralCipher::train(&config))
                     .await
-                    .map_err(|e| error::AftError::Other(format!("Training task failed: {}", e)))?;
+                    .map_err(|e| error::IftError::Other(format!("Training task failed: {}", e)))?;
             let model_path = std::path::PathBuf::from(output);
             cipher
                 .save(&model_path)
-                .map_err(|e| error::AftError::Other(format!("Failed to save model: {}", e)))?;
+                .map_err(|e| error::IftError::Other(format!("Failed to save model: {}", e)))?;
 
             let mut out = OutputResult::success("Crypto Train");
             out.source = Some(format!("Neural cipher model: {}", model_path.display()));
@@ -1400,7 +1400,7 @@ async fn cmd_crypto(
             key_file,
         } => {
             let enc_method = crypto::EncryptionMethod::parse(method).ok_or_else(|| {
-                error::AftError::Other(format!(
+                error::IftError::Other(format!(
                     "Unknown encryption method '{}'. Use: pqc, neural, hybrid",
                     method
                 ))
@@ -1475,7 +1475,7 @@ async fn recursive_local_copy(
     destination: &str,
     config: &engine::TransferConfig,
     format: output::Format,
-) -> AftResult<OutputResult> {
+) -> IftResult<OutputResult> {
     let src_path = Path::new(source);
     let dst_path = PathBuf::from(destination);
 
@@ -1577,7 +1577,7 @@ async fn recursive_local_copy(
 // Telemetry command
 // ---------------------------------------------------------------------------
 
-async fn cmd_telemetry(action: &TelemetryAction) -> AftResult<OutputResult> {
+async fn cmd_telemetry(action: &TelemetryAction) -> IftResult<OutputResult> {
     use telemetry::{format_telemetry_info, TelemetryConfig, TelemetryStore};
 
     match action {
@@ -1603,7 +1603,7 @@ async fn cmd_telemetry(action: &TelemetryAction) -> AftResult<OutputResult> {
             config.opt_in()?;
 
             println!("{}", "Telemetry enabled.".green());
-            println!("Thank you for helping improve AFT!");
+            println!("Thank you for helping improve IFT!");
 
             let mut out = OutputResult::success("Telemetry Opt-In");
             out.source = Some("Telemetry is now enabled".to_string());
@@ -1642,7 +1642,7 @@ async fn cmd_telemetry(action: &TelemetryAction) -> AftResult<OutputResult> {
             if !store.config().is_remote_enabled() {
                 println!(
                     "{}",
-                    "Remote telemetry is disabled. Use 'aft telemetry opt-in' to enable.".yellow()
+                    "Remote telemetry is disabled. Use 'ift telemetry opt-in' to enable.".yellow()
                 );
                 return Ok(OutputResult::failure(
                     "Telemetry Sync",
@@ -1708,7 +1708,7 @@ async fn cmd_telemetry(action: &TelemetryAction) -> AftResult<OutputResult> {
                     lines.join("\n")
                 }
                 _ => serde_json::to_string_pretty(&records)
-                    .map_err(|e| error::AftError::Other(format!("JSON error: {}", e)))?,
+                    .map_err(|e| error::IftError::Other(format!("JSON error: {}", e)))?,
             };
 
             if let Some(path) = output {

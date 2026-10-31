@@ -18,7 +18,7 @@ use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, BufReader, BufWriter};
 use tokio::sync::{mpsc, Mutex};
 
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 use super::frame::*;
 
@@ -68,7 +68,7 @@ impl MuxSession {
     }
 
     /// Open a new multiplexed stream. Returns (stream_id, receiver).
-    pub async fn open_stream(&self) -> AftResult<(u16, MuxStream)> {
+    pub async fn open_stream(&self) -> IftResult<(u16, MuxStream)> {
         let mut id = self.next_stream_id.lock().await;
         let stream_id = *id;
         *id = id.wrapping_add(2); // client uses odd IDs
@@ -96,7 +96,7 @@ impl MuxSession {
     }
 
     /// Close a stream.
-    pub async fn close_stream(&self, stream_id: u16) -> AftResult<()> {
+    pub async fn close_stream(&self, stream_id: u16) -> IftResult<()> {
         self.streams.lock().await.remove(&stream_id);
 
         let payload = build_stream_close(stream_id);
@@ -166,7 +166,7 @@ pub struct MuxStream {
 
 impl MuxStream {
     /// Send a frame on this stream.
-    pub async fn send_frame(&self, frame_type: u8, payload: &[u8]) -> AftResult<()> {
+    pub async fn send_frame(&self, frame_type: u8, payload: &[u8]) -> IftResult<()> {
         let sd_payload = build_stream_data(self.stream_id, frame_type, payload);
         let mut w = self.writer.lock().await;
         write_frame(&mut *w, &Frame::new(FRAME_STREAM_DATA, sd_payload)).await?;
@@ -175,11 +175,11 @@ impl MuxStream {
     }
 
     /// Receive the next frame on this stream.
-    pub async fn recv_frame(&mut self) -> AftResult<MuxFrame> {
+    pub async fn recv_frame(&mut self) -> IftResult<MuxFrame> {
         self.receiver
             .recv()
             .await
-            .ok_or_else(|| AftError::ConnectionFailed("Stream closed".into()))
+            .ok_or_else(|| IftError::ConnectionFailed("Stream closed".into()))
     }
 }
 
@@ -200,12 +200,12 @@ impl MuxServer {
         wr: W,
         max_frame_size: u32,
         stream_handler: F,
-    ) -> AftResult<()>
+    ) -> IftResult<()>
     where
         R: AsyncRead + Unpin + Send + 'static,
         W: AsyncWrite + Unpin + Send + 'static,
         F: Fn(u16, MuxServerStream) -> Fut + Send + Sync + 'static,
-        Fut: std::future::Future<Output = AftResult<()>> + Send + 'static,
+        Fut: std::future::Future<Output = IftResult<()>> + Send + 'static,
     {
         let writer: Arc<Mutex<BufWriter<Box<dyn AsyncWrite + Unpin + Send>>>> =
             Arc::new(Mutex::new(BufWriter::new(Box::new(wr))));
@@ -281,7 +281,7 @@ pub struct MuxServerStream {
 
 impl MuxServerStream {
     /// Send a frame on this stream.
-    pub async fn send_frame(&self, frame_type: u8, payload: &[u8]) -> AftResult<()> {
+    pub async fn send_frame(&self, frame_type: u8, payload: &[u8]) -> IftResult<()> {
         let sd_payload = build_stream_data(self.stream_id, frame_type, payload);
         let mut w = self.writer.lock().await;
         write_frame(&mut *w, &Frame::new(FRAME_STREAM_DATA, sd_payload)).await?;
@@ -290,10 +290,10 @@ impl MuxServerStream {
     }
 
     /// Receive the next frame on this stream.
-    pub async fn recv_frame(&mut self) -> AftResult<MuxFrame> {
+    pub async fn recv_frame(&mut self) -> IftResult<MuxFrame> {
         self.receiver
             .recv()
             .await
-            .ok_or_else(|| AftError::ConnectionFailed("Stream closed".into()))
+            .ok_or_else(|| IftError::ConnectionFailed("Stream closed".into()))
     }
 }

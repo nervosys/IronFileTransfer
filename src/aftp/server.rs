@@ -24,7 +24,7 @@ use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 
 use crate::audit;
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 use super::frame::*;
 
@@ -283,14 +283,14 @@ impl AftpServer {
         self
     }
 
-    pub async fn run(self) -> AftResult<()> {
+    pub async fn run(self) -> IftResult<()> {
         let root = self
             .root
             .canonicalize()
-            .map_err(|_| AftError::Other(format!("Root directory not found: {:?}", self.root)))?;
+            .map_err(|_| IftError::Other(format!("Root directory not found: {:?}", self.root)))?;
 
         if !root.is_dir() {
-            return Err(AftError::Other(format!("{:?} is not a directory", root)));
+            return Err(IftError::Other(format!("{:?} is not a directory", root)));
         }
 
         // Load TLS config if cert/key provided
@@ -300,7 +300,7 @@ impl AftpServer {
                 Some(acceptor)
             }
             (Some(_), None) | (None, Some(_)) => {
-                return Err(AftError::Other(
+                return Err(IftError::Other(
                     "Both --tls-cert and --tls-key must be provided for TLS".into(),
                 ));
             }
@@ -310,10 +310,10 @@ impl AftpServer {
         let addr = format!("{}:{}", self.bind_addr, self.port);
         let listener = TcpListener::bind(&addr)
             .await
-            .map_err(|e| AftError::Other(format!("Failed to bind {}: {}", addr, e)))?;
+            .map_err(|e| IftError::Other(format!("Failed to bind {}: {}", addr, e)))?;
 
         eprintln!();
-        eprintln!("{}", " AFT Server ".on_blue().white().bold());
+        eprintln!("{}", " IFT Server ".on_blue().white().bold());
         eprintln!("  {} {}", "Root:    ".cyan().bold(), root.display());
         eprintln!("  {} {}", "Listen:  ".cyan().bold(), addr.green());
         eprintln!(
@@ -480,9 +480,9 @@ struct ServerState {
 impl ServerState {
     /// Resolve and validate a requested path against the server root.
     /// Prevents path-traversal and symlink-escape attacks.
-    fn safe_path(&self, requested: &str) -> AftResult<PathBuf> {
+    fn safe_path(&self, requested: &str) -> IftResult<PathBuf> {
         if requested.contains("..") {
-            return Err(AftError::PermissionDenied("Path traversal detected".into()));
+            return Err(IftError::PermissionDenied("Path traversal detected".into()));
         }
 
         let clean = requested.trim_start_matches('/').replace('\\', "/");
@@ -495,7 +495,7 @@ impl ServerState {
         if path.exists() {
             let canonical = path.canonicalize()?;
             if !canonical.starts_with(&self.root) {
-                return Err(AftError::PermissionDenied(
+                return Err(IftError::PermissionDenied(
                     "Path outside server root".into(),
                 ));
             }
@@ -517,18 +517,18 @@ impl ServerState {
             while !ancestor.exists() {
                 let name = ancestor
                     .file_name()
-                    .ok_or_else(|| AftError::Other("Invalid path".into()))?
+                    .ok_or_else(|| IftError::Other("Invalid path".into()))?
                     .to_os_string();
                 trailing.push(name);
                 match ancestor.parent() {
                     Some(p) if !p.as_os_str().is_empty() => ancestor = p.to_path_buf(),
-                    _ => return Err(AftError::Other("Invalid path".into())),
+                    _ => return Err(IftError::Other("Invalid path".into())),
                 }
             }
 
             let canonical = ancestor.canonicalize()?;
             if !canonical.starts_with(&self.root) {
-                return Err(AftError::PermissionDenied(
+                return Err(IftError::PermissionDenied(
                     "Path outside server root".into(),
                 ));
             }
@@ -554,7 +554,7 @@ async fn handle_hello_handshake<R, W>(
     writer: &mut BufWriter<W>,
     hello_frame: &Frame,
     addr: SocketAddr,
-) -> AftResult<(bool, bool, u32, String, bool, bool)>
+) -> IftResult<(bool, bool, u32, String, bool, bool)>
 where
     R: tokio::io::AsyncRead + Unpin,
     W: tokio::io::AsyncWrite + Unpin,
@@ -581,7 +581,7 @@ where
                         addr
                     );
                 }
-                return Err(AftError::PermissionDenied("Rate limited".into()));
+                return Err(IftError::PermissionDenied("Rate limited".into()));
             }
         }
 
@@ -606,7 +606,7 @@ where
                 if state.verbose {
                     eprintln!("  {} {} auth FAILED (bad frame type)", "!".yellow(), addr);
                 }
-                return Err(AftError::AuthFailed("Auth failed".into()));
+                return Err(IftError::AuthFailed("Auth failed".into()));
             }
 
             let resp_data = parse_auth_response(&resp_frame.payload)?;
@@ -619,7 +619,7 @@ where
                 if state.verbose {
                     eprintln!("  {} {} auth FAILED (bad HMAC)", "!".yellow(), addr);
                 }
-                return Err(AftError::AuthFailed("Auth failed".into()));
+                return Err(IftError::AuthFailed("Auth failed".into()));
             }
         } else {
             // Simple token auth
@@ -631,7 +631,7 @@ where
                 if state.verbose {
                     eprintln!("  {} {} auth FAILED (bad token)", "!".yellow(), addr);
                 }
-                return Err(AftError::AuthFailed("Auth failed".into()));
+                return Err(IftError::AuthFailed("Auth failed".into()));
             }
         }
 
@@ -723,7 +723,7 @@ async fn handle_resume_handshake<W>(
     writer: &mut BufWriter<W>,
     resume_frame: &Frame,
     addr: SocketAddr,
-) -> AftResult<(bool, bool, u32, String)>
+) -> IftResult<(bool, bool, u32, String)>
 where
     W: tokio::io::AsyncWrite + Unpin,
 {
@@ -735,7 +735,7 @@ where
             let ack = build_resume_ack(false, 0, "");
             write_frame(writer, &Frame::new(FRAME_RESUME_ACK, ack)).await?;
             writer.flush().await?;
-            return Err(AftError::AuthFailed("Invalid auth token on resume".into()));
+            return Err(IftError::AuthFailed("Invalid auth token on resume".into()));
         }
     }
 
@@ -755,7 +755,7 @@ where
         let ack = build_resume_ack(false, 0, "");
         write_frame(writer, &Frame::new(FRAME_RESUME_ACK, ack)).await?;
         writer.flush().await?;
-        return Err(AftError::Other("Session not found or expired".into()));
+        return Err(IftError::Other("Session not found or expired".into()));
     }
 
     let ack = build_resume_ack(true, resume_offset, &last_path);
@@ -794,7 +794,7 @@ async fn handle_connection<R, W>(
     rd: R,
     wr: W,
     addr: SocketAddr,
-) -> AftResult<()>
+) -> IftResult<()>
 where
     R: tokio::io::AsyncRead + Unpin + Send,
     W: tokio::io::AsyncWrite + Unpin + Send,
@@ -819,7 +819,7 @@ where
             }
             _ => {
                 send_error(&mut writer, ERR_INVALID_REQUEST, "Expected HELLO or RESUME").await?;
-                return Err(AftError::Other(
+                return Err(IftError::Other(
                     "Client did not send HELLO or RESUME".into(),
                 ));
             }
@@ -838,7 +838,7 @@ where
         let frame =
             match tokio::time::timeout(idle_timeout, read_frame(&mut reader, max_payload)).await {
                 Ok(Ok(f)) => f,
-                Ok(Err(AftError::ConnectionFailed(_))) => break, // clean disconnect
+                Ok(Err(IftError::ConnectionFailed(_))) => break, // clean disconnect
                 Ok(Err(e)) => return Err(e),
                 Err(_) => {
                     // Idle timeout expired
@@ -940,7 +940,7 @@ async fn recv_put_fec<R, W>(
     use_fec_quic: bool,
     auth_token: Option<&str>,
     ctrl_rtt: Option<std::time::Duration>,
-) -> AftResult<u64>
+) -> IftResult<u64>
 where
     R: tokio::io::AsyncRead + Unpin,
     W: tokio::io::AsyncWrite + Unpin,
@@ -987,7 +987,7 @@ async fn recv_put_tree_fec<R, W>(
     use_fec_quic: bool,
     auth_token: Option<&str>,
     ctrl_rtt: Option<std::time::Duration>,
-) -> AftResult<u64>
+) -> IftResult<u64>
 where
     R: tokio::io::AsyncRead + Unpin,
     W: tokio::io::AsyncWrite + Unpin,
@@ -997,7 +997,7 @@ where
     // The offer follows the tree marker on the control plane.
     let offer_frame = read_frame(reader, INITIAL_MAX_PAYLOAD).await?;
     if offer_frame.frame_type != FRAME_FEC_OFFER {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "Expected FEC_OFFER after tree marker, got 0x{:02x}",
             offer_frame.frame_type
         )));
@@ -1021,7 +1021,7 @@ where
     let (manifest, data_base) = read_manifest_prefix(temp_path).await?;
     if data_base + manifest.total_len != offer.total_len {
         let _ = tokio::fs::remove_file(temp_path).await;
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "tree packed length {} disagrees with offer {}",
             data_base + manifest.total_len,
             offer.total_len
@@ -1072,7 +1072,7 @@ async fn recv_fec_object<R, W>(
     use_fec_quic: bool,
     auth_token: Option<&str>,
     ctrl_rtt: Option<std::time::Duration>,
-) -> AftResult<super::fec::transfer::RecvStats>
+) -> IftResult<super::fec::transfer::RecvStats>
 where
     R: tokio::io::AsyncRead + Unpin,
     W: tokio::io::AsyncWrite + Unpin,
@@ -1097,7 +1097,7 @@ where
         )
         .await?;
         writer.flush().await?;
-        return Err(AftError::Other(
+        return Err(IftError::Other(
             "FEC upload requested authenticated symbols but no key is available".into(),
         ));
     }
@@ -1227,7 +1227,7 @@ where
     let end_frame = read_frame(reader, INITIAL_MAX_PAYLOAD).await?;
     if end_frame.frame_type != FRAME_DATA_END {
         let _ = tokio::fs::remove_file(temp_path).await;
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "Expected DATA_END after FEC upload, got 0x{:02x}",
             end_frame.frame_type
         )));
@@ -1236,7 +1236,7 @@ where
 
     if end.total_bytes != offer.total_len {
         let _ = tokio::fs::remove_file(temp_path).await;
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "FEC upload byte count mismatch: offered {}, DATA_END says {}",
             offer.total_len, end.total_bytes
         )));
@@ -1258,7 +1258,7 @@ where
         if actual.as_slice() != end.checksum.as_slice() {
             // Fail closed: never publish data that did not verify.
             let _ = tokio::fs::remove_file(temp_path).await;
-            return Err(AftError::ChecksumMismatch {
+            return Err(IftError::ChecksumMismatch {
                 expected: hex::encode(&end.checksum),
                 actual: hex::encode(actual),
             });
@@ -1296,7 +1296,7 @@ async fn serve_get_fec<R, W>(
     addr: SocketAddr,
     use_fec_quic: bool,
     session_id: &str,
-) -> AftResult<()>
+) -> IftResult<()>
 where
     R: tokio::io::AsyncRead + Unpin,
     W: tokio::io::AsyncWrite + Unpin,
@@ -1349,14 +1349,14 @@ where
     // Wait for the client to bind its socket and tell us the port.
     let accept_frame = read_frame(reader, INITIAL_MAX_PAYLOAD).await?;
     if accept_frame.frame_type != FRAME_FEC_ACCEPT {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "Expected FEC_ACCEPT, got 0x{:02x}",
             accept_frame.frame_type
         )));
     }
     let accept = parse_fec_accept(&accept_frame.payload)?;
     if !accept.accepted {
-        return Err(AftError::Other(format!(
+        return Err(IftError::Other(format!(
             "Client declined the FEC data plane: {}",
             accept.reason
         )));
@@ -1438,7 +1438,7 @@ where
                     }
                     // Anything else mid-transfer is a protocol violation.
                     other => {
-                        return Err(AftError::Other(format!(
+                        return Err(IftError::Other(format!(
                             "Unexpected frame 0x{:02x} during FEC transfer",
                             other
                         )))
@@ -1493,7 +1493,7 @@ async fn handle_get<R, W>(
     use_fec: bool,
     use_fec_quic: bool,
     session_id: &str,
-) -> AftResult<()>
+) -> IftResult<()>
 where
     R: tokio::io::AsyncRead + Unpin,
     W: tokio::io::AsyncWrite + Unpin,
@@ -1668,7 +1668,7 @@ async fn handle_head<W: tokio::io::AsyncWrite + Unpin>(
     state: &ServerState,
     writer: &mut BufWriter<W>,
     frame: &Frame,
-) -> AftResult<()> {
+) -> IftResult<()> {
     let mut off = 0;
     let path_str = get_str(&frame.payload, &mut off)?;
     let path = match state.safe_path(&path_str) {
@@ -1681,7 +1681,7 @@ async fn handle_head<W: tokio::io::AsyncWrite + Unpin>(
 
     let metadata = tokio::fs::metadata(&path)
         .await
-        .map_err(|e| AftError::FileNotFound(format!("{}: {}", path_str, e)))?;
+        .map_err(|e| IftError::FileNotFound(format!("{}: {}", path_str, e)))?;
 
     let modified_secs = metadata
         .modified()
@@ -1718,7 +1718,7 @@ async fn handle_put<R, W>(
     use_fec: bool,
     use_fec_quic: bool,
     ctrl_rtt: Option<std::time::Duration>,
-) -> AftResult<()>
+) -> IftResult<()>
 where
     R: tokio::io::AsyncRead + Unpin,
     W: tokio::io::AsyncWrite + Unpin,
@@ -1817,7 +1817,7 @@ where
                 };
                 let payload = if data_frame.flags & FLAG_COMPRESSED != 0 {
                     zstd::decode_all(std::io::Cursor::new(&raw_payload))
-                        .map_err(|e| AftError::Other(format!("zstd decompress error: {}", e)))?
+                        .map_err(|e| IftError::Other(format!("zstd decompress error: {}", e)))?
                 } else {
                     raw_payload
                 };
@@ -1864,7 +1864,7 @@ where
             FRAME_ERROR => {
                 let _ = tokio::fs::remove_file(&temp_path).await;
                 let err = parse_error(&data_frame.payload)?;
-                return Err(AftError::Other(format!(
+                return Err(IftError::Other(format!(
                     "Client error during PUT: {}",
                     err.message
                 )));
@@ -1912,7 +1912,7 @@ async fn handle_list<W: tokio::io::AsyncWrite + Unpin>(
     state: &ServerState,
     writer: &mut BufWriter<W>,
     frame: &Frame,
-) -> AftResult<()> {
+) -> IftResult<()> {
     let mut off = 0;
     let path_str = get_str(&frame.payload, &mut off)?;
     let path = match state.safe_path(&path_str) {
@@ -1970,7 +1970,7 @@ async fn send_error<W: tokio::io::AsyncWrite + Unpin>(
     writer: &mut BufWriter<W>,
     code: u16,
     message: &str,
-) -> AftResult<()> {
+) -> IftResult<()> {
     let payload = build_error(code, message);
     write_frame(writer, &Frame::new(FRAME_ERROR, payload)).await?;
     writer.flush().await?;
@@ -1979,12 +1979,12 @@ async fn send_error<W: tokio::io::AsyncWrite + Unpin>(
 
 async fn send_err_from<W: tokio::io::AsyncWrite + Unpin>(
     writer: &mut BufWriter<W>,
-    err: &AftError,
-) -> AftResult<()> {
+    err: &IftError,
+) -> IftResult<()> {
     // Return only generic messages to clients — never leak internal paths.
     let (code, msg) = match err {
-        AftError::FileNotFound(_) => (ERR_NOT_FOUND, "Not found"),
-        AftError::PermissionDenied(_) | AftError::AuthFailed(_) => {
+        IftError::FileNotFound(_) => (ERR_NOT_FOUND, "Not found"),
+        IftError::PermissionDenied(_) | IftError::AuthFailed(_) => {
             (ERR_PERMISSION_DENIED, "Access denied")
         }
         _ => (ERR_INTERNAL, "Internal server error"),
@@ -2027,7 +2027,7 @@ fn guess_mime(path: &Path) -> String {
 
 // ── TLS helpers ─────────────────────────────────────────────────────────────
 
-fn load_tls_acceptor(cert_path: &str, key_path: &str) -> AftResult<tokio_rustls::TlsAcceptor> {
+fn load_tls_acceptor(cert_path: &str, key_path: &str) -> IftResult<tokio_rustls::TlsAcceptor> {
     use rustls::pki_types::PrivateKeyDer;
     use std::io::BufReader as StdBufReader;
 
@@ -2035,22 +2035,22 @@ fn load_tls_acceptor(cert_path: &str, key_path: &str) -> AftResult<tokio_rustls:
     let _ = ic_rustls::provider().install_default();
 
     let cert_file = std::fs::File::open(cert_path)
-        .map_err(|e| AftError::Other(format!("Cannot open TLS cert {}: {}", cert_path, e)))?;
+        .map_err(|e| IftError::Other(format!("Cannot open TLS cert {}: {}", cert_path, e)))?;
     let mut cert_reader = StdBufReader::new(cert_file);
     let certs: Vec<_> = rustls_pemfile::certs(&mut cert_reader)
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| AftError::Other(format!("Invalid TLS cert: {}", e)))?;
+        .map_err(|e| IftError::Other(format!("Invalid TLS cert: {}", e)))?;
 
     if certs.is_empty() {
-        return Err(AftError::Other("No certificates found in PEM file".into()));
+        return Err(IftError::Other("No certificates found in PEM file".into()));
     }
 
     let key_file = std::fs::File::open(key_path)
-        .map_err(|e| AftError::Other(format!("Cannot open TLS key {}: {}", key_path, e)))?;
+        .map_err(|e| IftError::Other(format!("Cannot open TLS key {}: {}", key_path, e)))?;
     let mut key_reader = StdBufReader::new(key_file);
     let key: PrivateKeyDer = rustls_pemfile::private_key(&mut key_reader)
-        .map_err(|e| AftError::Other(format!("Invalid TLS key: {}", e)))?
-        .ok_or_else(|| AftError::Other("No private key found in PEM file".into()))?;
+        .map_err(|e| IftError::Other(format!("Invalid TLS key: {}", e)))?
+        .ok_or_else(|| IftError::Other("No private key found in PEM file".into()))?;
 
     // Restrict to TLS 1.2+ and FIPS-compatible cipher suites
     let tls_versions = &[&rustls::version::TLS13, &rustls::version::TLS12];
@@ -2095,10 +2095,10 @@ fn load_tls_acceptor(cert_path: &str, key_path: &str) -> AftResult<tokio_rustls:
 
     let config = rustls::ServerConfig::builder_with_provider(Arc::new(provider))
         .with_protocol_versions(tls_versions)
-        .map_err(|e| AftError::Other(format!("TLS version config error: {}", e)))?
+        .map_err(|e| IftError::Other(format!("TLS version config error: {}", e)))?
         .with_no_client_auth()
         .with_single_cert(certs, key)
-        .map_err(|e| AftError::Other(format!("TLS config error: {}", e)))?;
+        .map_err(|e| IftError::Other(format!("TLS config error: {}", e)))?;
 
     Ok(tokio_rustls::TlsAcceptor::from(Arc::new(config)))
 }

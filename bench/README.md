@@ -17,8 +17,8 @@ client namespace to server namespace, recording wall clock and peak RSS
 
 Contender tools expected on PATH inside the namespaces: `rsync`, `atp`
 (built from [Dicklesworthstone/atp](https://github.com/Dicklesworthstone/atp)),
-and the `aft` release binary. The harness roots its workspace at `$BENCH_ROOT`
-(default `$HOME/aft-bench`); override `BENCH_ROOT`, or point `AFT_BIN` / `ATP_BIN`
+and the `ift` release binary. The harness roots its workspace at `$BENCH_ROOT`
+(default `$HOME/ift-bench`); override `BENCH_ROOT`, or point `AFT_BIN` / `ATP_BIN`
 directly at the two binaries.
 
 ```bash
@@ -26,7 +26,7 @@ directly at the two binaries.
 sudo bash run.sh
 
 # Focused run, e.g. only the FEC path on the lossy regimes
-sudo env TOOLS=aft-fec REGIMES="bad broken" WORKLOADS=single_50m RUNS=3 \
+sudo env TOOLS=ift-fec REGIMES="bad broken" WORKLOADS=single_50m RUNS=3 \
     OUT=results_focus.jsonl bash run.sh
 
 # RESUME=1 appends to OUT and skips cells that already have >= RUNS rows
@@ -45,19 +45,19 @@ Result rows: `{tool, workload, regime, run, status, seconds, rss_kb, bytes, note
 Transfers are byte-verified after each run; a timeout or hash mismatch is
 recorded as a failure row, never silently dropped.
 
-- `results.jsonl` — baseline sweep (rsync, atp-tcp, atp-rq, aft, aft-turbo across
+- `results.jsonl` — baseline sweep (rsync, atp-tcp, atp-rq, ift, ift-turbo across
   all four regimes and workloads).
-- `results_fec.jsonl` — 50 MB single-file head-to-head including `aft --fec`.
-- `results_fec_final.jsonl` — `aft --fec` re-measured with the final binary
+- `results_fec.jsonl` — 50 MB single-file head-to-head including `ift --fec`.
+- `results_fec_final.jsonl` — `ift --fec` re-measured with the final binary
   (adaptive receiver patience + sample-driven BBR pacing with a startup guard,
-  per-interval delivery deltas, and loss-hint decay); these are the aft --fec
+  per-interval delivery deltas, and loss-hint decay); these are the ift --fec
   rows quoted in the docs. good 3.2 s (6/6), bad 13.0 s (6/6), broken 103 s (3/3).
-- `results_tcp_bbr.jsonl` — `aft` TCP path (no `--fec`) with BBR on the lossy
+- `results_tcp_bbr.jsonl` — `ift` TCP path (no `--fec`) with BBR on the lossy
   regimes: bad 14.8 s (3/3), broken timeout (3/3). Requires `modprobe tcp_bbr`.
 - `results_good_9run.jsonl` — the `good` regime measured at 9 runs per tool
-  (that regime is high-variance; 3 runs is too few for a stable median). aft
+  (that regime is high-variance; 3 runs is too few for a stable median). ift
   (TCP, BBR default) 2.8 s — fastest and tightest — vs atp-tcp 3.0, atp-rq 3.0,
-  rsync 3.3, aft --fec 3.4. These are the `good`-column figures in the docs.
+  rsync 3.3, ift --fec 3.4. These are the `good`-column figures in the docs.
 
 These are the raw data behind the measured tables in
 [docs/BENCHMARKS.md](../docs/BENCHMARKS.md).

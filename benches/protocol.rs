@@ -8,7 +8,7 @@
 //! - Frame I/O (write_frame / read_frame over in-memory cursor)
 //! - Per-frame CRC32 verification
 
-use aft::aftp::frame::*;
+use ift::aftp::frame::*;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use tokio::runtime::Runtime;
 

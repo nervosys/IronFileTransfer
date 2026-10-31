@@ -4,11 +4,11 @@
 //!
 //! Measures throughput of:
 //! - CRC32 (SSE4.2 / ARM CRC32 via crc32fast)
-//! - SHA-256 (IronCrypto `ic-hash`, via `aft::crypto::primitives`)
-//! - AES-256-GCM encrypt + decrypt (IronCrypto `ic-cipher`, via `aft::crypto::primitives`)
+//! - SHA-256 (IronCrypto `ic-hash`, via `ift::crypto::primitives`)
+//! - AES-256-GCM encrypt + decrypt (IronCrypto `ic-cipher`, via `ift::crypto::primitives`)
 //! - Zstd compression + decompression (SIMD via libzstd)
 
-use aft::crypto::primitives::{gcm_open, gcm_seal, sha256};
+use ift::crypto::primitives::{gcm_open, gcm_seal, sha256};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 const SIZES: &[(u64, &str)] = &[

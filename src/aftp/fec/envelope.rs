@@ -61,7 +61,7 @@
 use crate::crypto::primitives;
 
 use super::symcrypto;
-use crate::error::{AftError, AftResult};
+use crate::error::{IftError, IftResult};
 
 /// Envelope magic — distinct from the control plane's `0xAF 0x54` so a
 /// datagram that lands on the wrong socket is rejected immediately.
@@ -152,9 +152,9 @@ impl Envelope {
     /// With no key the envelope carries a CRC32 instead, which detects
     /// corruption but neither forgery nor disclosure — appropriate only for a
     /// trusted link that never carries sensitive data.
-    pub fn encode(&self, key: Option<&[u8]>) -> AftResult<Vec<u8>> {
+    pub fn encode(&self, key: Option<&[u8]>) -> IftResult<Vec<u8>> {
         if self.payload.len() > u16::MAX as usize {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "FEC payload {} exceeds {} bytes",
                 self.payload.len(),
                 u16::MAX
@@ -200,18 +200,18 @@ impl Envelope {
     /// bytes is rejected rather than partially accepted. `key` must be supplied
     /// iff the sender authenticated; a mismatch is an error, so an attacker
     /// cannot strip authentication (and encryption) by clearing the flags.
-    pub fn decode(buf: &[u8], key: Option<&[u8]>) -> AftResult<Self> {
+    pub fn decode(buf: &[u8], key: Option<&[u8]>) -> IftResult<Self> {
         if buf.len() < HEADER_PREFIX_LEN {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "FEC datagram too short: {} bytes",
                 buf.len()
             )));
         }
         if buf[0..2] != ENVELOPE_MAGIC {
-            return Err(AftError::Other("FEC bad magic".to_string()));
+            return Err(IftError::Other("FEC bad magic".to_string()));
         }
         if buf[2] != ENVELOPE_VERSION {
-            return Err(AftError::Other(format!(
+            return Err(IftError::Other(format!(
                 "FEC version mismatch: got {}, expected {}",
                 buf[2], ENVELOPE_VERSION
             )));
@@ -229,13 +229,13 @@ impl Envelope {
             (true, true) => {}
             (false, false) if !authed && !encrypted => {}
             (true, _) => {
-                return Err(AftError::Other(
+                return Err(IftError::Other(
                     "FEC datagram is not authenticated/encrypted but a key is configured"
                         .to_string(),
                 ))
             }
             (false, _) => {
-                return Err(AftError::Other(
+                return Err(IftError::Other(
                     "FEC datagram is authenticated but no key is configured".to_string(),
                 ))
             }
@@ -249,7 +249,7 @@ impl Envelope {
             Some(k) => {
                 let expected = ENC_HEADER_LEN + payload_len + GCM_TAG_LEN;
                 if buf.len() != expected {
-                    return Err(AftError::Other(format!(
+                    return Err(IftError::Other(format!(
                         "FEC length mismatch: declared {}, envelope {} bytes",
                         payload_len,
                         buf.len()
@@ -271,7 +271,7 @@ impl Envelope {
             None => {
                 let header_len = HEADER_LEN_PLAIN;
                 if buf.len() != header_len + payload_len {
-                    return Err(AftError::Other(format!(
+                    return Err(IftError::Other(format!(
                         "FEC length mismatch: declared {}, received {}",
                         payload_len,
                         buf.len().saturating_sub(header_len)
@@ -285,7 +285,7 @@ impl Envelope {
                 h.update(prefix);
                 h.update(payload);
                 if h.finalize().to_be_bytes() != tag {
-                    return Err(AftError::Other("FEC symbol CRC32 mismatch".to_string()));
+                    return Err(IftError::Other("FEC symbol CRC32 mismatch".to_string()));
                 }
                 Ok(Self {
                     session_id,

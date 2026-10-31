@@ -1,6 +1,6 @@
 // Copyright (c) 2024-2026 Nervosys LLC
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! ProtocolHandler implementation for the AFTP (Agentic File Transfer Protocol).
+//! ProtocolHandler implementation for the AFTP (Iron File Transfer Protocol).
 //!
 //! Thin adapter: maps the generic `ProtocolHandler` trait surface onto the
 //! concrete `AftpClient` in `crate::aftp::client`.
@@ -13,7 +13,7 @@ use std::path::Path;
 use async_trait::async_trait;
 
 use crate::aftp::client::{parse_aftp_url, AftpClient};
-use crate::error::AftResult;
+use crate::error::IftResult;
 
 use super::{DirectoryEntry, ProtocolHandler, ProtocolOptions, ResourceMetadata};
 
@@ -38,14 +38,14 @@ impl AftpHandler {
         url: &str,
         opts: &ProtocolOptions,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (client, path) = make_client(url, opts)?;
         let cb = progress.as_deref();
         client.upload_tree(source, &path, cb).await
     }
 }
 
-fn make_client(url: &str, opts: &ProtocolOptions) -> AftResult<(AftpClient, String)> {
+fn make_client(url: &str, opts: &ProtocolOptions) -> IftResult<(AftpClient, String)> {
     let (host, port, path, use_tls) = parse_aftp_url(url)?;
     let client = AftpClient::new(
         host,
@@ -67,7 +67,7 @@ impl ProtocolHandler for AftpHandler {
     }
 
     fn name(&self) -> &str {
-        "AFTP (Agentic File Transfer Protocol)"
+        "AFTP (Iron File Transfer Protocol)"
     }
 
     fn supports_ranges(&self) -> bool {
@@ -93,7 +93,7 @@ impl ProtocolHandler for AftpHandler {
         true
     }
 
-    async fn head(&self, url: &str, opts: &ProtocolOptions) -> AftResult<ResourceMetadata> {
+    async fn head(&self, url: &str, opts: &ProtocolOptions) -> IftResult<ResourceMetadata> {
         let (client, path) = make_client(url, opts)?;
         let info = client.head(&path).await?;
         Ok(ResourceMetadata {
@@ -113,7 +113,7 @@ impl ProtocolHandler for AftpHandler {
         opts: &ProtocolOptions,
         resume_from: Option<u64>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (client, path) = make_client(url, opts)?;
         // Resume is handled by starting a range GET from resume_from offset
         if let Some(offset) = resume_from {
@@ -139,7 +139,7 @@ impl ProtocolHandler for AftpHandler {
         start: u64,
         end: u64,
         opts: &ProtocolOptions,
-    ) -> AftResult<Vec<u8>> {
+    ) -> IftResult<Vec<u8>> {
         let (client, path) = make_client(url, opts)?;
         client.download_range(&path, start, end).await
     }
@@ -152,13 +152,13 @@ impl ProtocolHandler for AftpHandler {
         _content_type: Option<&str>,
         _method: Option<&str>,
         progress: Option<Box<dyn Fn(u64, Option<u64>) + Send + Sync>>,
-    ) -> AftResult<u64> {
+    ) -> IftResult<u64> {
         let (client, path) = make_client(url, opts)?;
         let cb = progress.as_deref();
         client.upload(source, &path, cb).await
     }
 
-    async fn list(&self, url: &str, opts: &ProtocolOptions) -> AftResult<Vec<DirectoryEntry>> {
+    async fn list(&self, url: &str, opts: &ProtocolOptions) -> IftResult<Vec<DirectoryEntry>> {
         let (client, path) = make_client(url, opts)?;
         let entries = client.list(&path).await?;
         Ok(entries

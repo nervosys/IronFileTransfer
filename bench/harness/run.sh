@@ -1,5 +1,5 @@
 #!/bin/bash
-# run.sh -- head-to-head transfer benchmark: rsync vs atp vs aft.
+# run.sh -- head-to-head transfer benchmark: rsync vs atp vs ift.
 #
 # Every tool PUSHES from ns_a (client) to a server in ns_b, across the veth
 # link impaired by netem.sh. Wall clock is measured around the client process;
@@ -12,14 +12,14 @@ set -u
 
 # Root of the benchmark workspace. Override BENCH_ROOT to relocate it; the tool
 # binaries can be pointed at explicitly with AFT_BIN / ATP_BIN.
-BENCH_ROOT=${BENCH_ROOT:-$HOME/aft-bench}
+BENCH_ROOT=${BENCH_ROOT:-$HOME/ift-bench}
 H=$BENCH_ROOT/harness
 DATA=$BENCH_ROOT/data
 DST=$BENCH_ROOT/dst
 LOGS=$BENCH_ROOT/logs
 OUT=${OUT:-$BENCH_ROOT/results.jsonl}
 
-AFT=${AFT_BIN:-$BENCH_ROOT/aft-src/target/release/aft}
+IFT=${AFT_BIN:-$BENCH_ROOT/ift-src/target/release/ift}
 ATP=${ATP_BIN:-atp}
 
 IP_B=10.0.0.2
@@ -77,7 +77,7 @@ regime_timeout() {
 }
 is_tree() { case "$1" in tree_*) return 0 ;; *) return 1 ;; esac; }
 
-TOOLS=${TOOLS:-"rsync atp-tcp atp-rq aft aft-turbo"}
+TOOLS=${TOOLS:-"rsync atp-tcp atp-rq ift ift-turbo"}
 
 # ---------------------------------------------------------------- helpers ---
 json_escape() { python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'; }
@@ -115,7 +115,7 @@ wait_port() { # port maxsec -- wait until ns_b is LISTENing on the port.
 kill_servers() {
   pkill -f "rsync --daemon" 2>/dev/null
   pkill -f "$ATP recv" 2>/dev/null
-  pkill -f "$AFT serve" 2>/dev/null
+  pkill -f "$IFT serve" 2>/dev/null
   sleep 0.3
 }
 
@@ -174,18 +174,18 @@ measure() {
       client_cmd=("$ATP" send "$src" "$IP_B:$ATP_PORT" --transport rq \
         --rq-allow-unauthenticated-lab)
       ;;
-    aft|aft-turbo|aft-fec)
+    ift|ift-turbo|ift-fec)
       port=$AFT_PORT
-      ip netns exec ns_b "$AFT" serve "$DST" --bind 0.0.0.0 --port $AFT_PORT \
+      ip netns exec ns_b "$IFT" serve "$DST" --bind 0.0.0.0 --port $AFT_PORT \
         >"$sl" 2>&1 &
       local turbo=()
-      [ "$tool" = aft-turbo ] && turbo=(--turbo)
-      [ "$tool" = aft-fec ] && turbo=(--fec)
+      [ "$tool" = ift-turbo ] && turbo=(--turbo)
+      [ "$tool" = ift-fec ] && turbo=(--fec)
       if is_tree "$wl"; then
-        client_cmd=("$AFT" "${turbo[@]}" copy -r "$src" "aftp://$IP_B:$AFT_PORT/")
+        client_cmd=("$IFT" "${turbo[@]}" copy -r "$src" "aftp://$IP_B:$AFT_PORT/")
       else
         local f; f=$(find "$src" -type f | head -1)
-        client_cmd=("$AFT" "${turbo[@]}" copy "$f" "aftp://$IP_B:$AFT_PORT/$(basename "$f")")
+        client_cmd=("$IFT" "${turbo[@]}" copy "$f" "aftp://$IP_B:$AFT_PORT/$(basename "$f")")
       fi
       ;;
   esac

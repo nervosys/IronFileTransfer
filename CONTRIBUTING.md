@@ -1,16 +1,16 @@
-# Contributing to AFT
+# Contributing to IFT
 
-Thanks for your interest in Agentic File Transfer. This guide covers how to build,
+Thanks for your interest in Iron File Transfer. This guide covers how to build,
 test, and submit changes.
 
 ## Development setup
 
-AFT is a Rust project (MSRV **1.75**). No special toolchain is required for the
+IFT is a Rust project (MSRV **1.75**). No special toolchain is required for the
 default build.
 
 ```bash
-git clone https://github.com/nervosys/AgenticFileTransfer
-cd AgenticFileTransfer
+git clone https://github.com/nervosys/IronFileTransfer
+cd IronFileTransfer
 cargo build
 cargo test
 ```
@@ -46,7 +46,7 @@ Please also:
 
 ## Developer Certificate of Origin (DCO)
 
-AFT is dual-licensed (AGPL-3.0-or-later **and** a commercial license — see
+IFT is dual-licensed (AGPL-3.0-or-later **and** a commercial license — see
 [LICENSING.md](LICENSING.md)). For the project to keep offering the commercial
 option, every contribution must be one you have the right to submit under the
 project's inbound license.

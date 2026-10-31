@@ -67,10 +67,24 @@ impl client::Handler for SshHandler {
 
     async fn check_server_key(
         &mut self,
-        server_public_key: &russh::keys::ssh_key::PublicKey,
+        server_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
         use russh::keys::known_hosts::{check_known_hosts, learn_known_hosts};
         use russh::keys::Error as KeysError;
+        use russh::keys::PublicKeyOrCertificate;
+
+        // Host certificates would need a trusted-CA check, which we do not have.
+        // known_hosts cannot vouch for one, so refuse rather than accept it.
+        let server_public_key = match server_key {
+            PublicKeyOrCertificate::PublicKey { key, .. } => key,
+            PublicKeyOrCertificate::Certificate(_) => {
+                eprintln!(
+                    "[31merror: refusing SSH host {}:{} — it presented a host certificate,                      which is not supported[0m",
+                    self.host, self.port
+                );
+                return Ok(false);
+            }
+        };
 
         match check_known_hosts(&self.host, self.port, server_public_key) {
             // Known host and the key matches what we recorded — accept.

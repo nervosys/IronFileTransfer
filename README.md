@@ -205,7 +205,7 @@ without modifying IFT itself. See [Plugin System](#plugin-system) for details.
 ## Installation
 
 ```bash
-cargo install --path .
+cargo install iron-file-transfer
 ```
 
 Or build from source:
